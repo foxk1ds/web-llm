@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="assets/web-llm-banner.png" alt="Web-LLM" width="100%">
+</p>
+
 # Web-LLM
 
 A clean, ChatGPT-style web interface for the language models running on your own
