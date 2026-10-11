@@ -1,0 +1,145 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+
+  :root {
+    --overlay: 9 9 11;
+    --app-bg: 250 250 251;
+    --panel-bg: 255 255 255;
+    --elevated-bg: 255 255 255;
+    --glow-rgb: 99 102 241;
+    --glow-alpha: 0.08;
+    color-scheme: light;
+  }
+
+  .dark {
+    --overlay: 255 255 255;
+    --app-bg: 10 13 26;
+    --panel-bg: 14 18 32;
+    --elevated-bg: 19 24 41;
+    --glow-rgb: 37 99 235;
+    --glow-alpha: 0.16;
+    color-scheme: dark;
+  }
+
+  .logo-metallic {
+    background-image: linear-gradient(178deg, #4b5262 0%, #6b7382 42%, #3d4351 68%, #59616f 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+  .dark .logo-metallic {
+    background-image: linear-gradient(178deg, #ffffff 2%, #ccd4e2 40%, #8e98ac 64%, #e6ebf3 100%);
+    filter: drop-shadow(0 1px 1px rgb(0 0 0 / 0.35));
+  }
+
+  html,
+  body {
+    height: 100%;
+  }
+
+  body {
+    @apply bg-app text-zinc-800 antialiased dark:text-zinc-100;
+    @apply ambient-glow bg-no-repeat;
+  }
+
+  *,
+  ::before,
+  ::after {
+    @apply border-overlay/[0.08];
+  }
+
+  ::selection {
+    @apply bg-indigo-500/25;
+  }
+}
+
+@layer components {
+
+  .inline-code {
+    @apply rounded-md border border-overlay/[0.08] bg-overlay/[0.05] px-1.5 py-0.5 font-mono text-[0.85em] font-medium text-zinc-800 dark:text-zinc-200;
+  }
+
+  .pill {
+    @apply inline-flex items-center rounded bg-overlay/[0.05] px-1.5 py-0.5 text-[11px] font-medium tabular-nums text-zinc-500 dark:text-zinc-400;
+  }
+
+  .glass-panel {
+    @apply border-overlay/[0.08] bg-panel/80 backdrop-blur-xl;
+  }
+
+  .focus-ring {
+    @apply outline-none focus-visible:ring-2 focus-visible:ring-indigo-500/50 focus-visible:ring-offset-0;
+  }
+
+  .command-bar {
+    @apply border-overlay/[0.1] bg-elevated/90 shadow-2xl shadow-black/20 backdrop-blur-md transition-all duration-200;
+    @apply focus-within:border-overlay/[0.2] focus-within:ring-1 focus-within:ring-overlay/[0.15] dark:shadow-black/60;
+  }
+
+  .thin-scrollbar {
+    scrollbar-width: thin;
+    scrollbar-color: rgb(var(--overlay) / 0.22) transparent;
+  }
+  .thin-scrollbar::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  .thin-scrollbar::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  .thin-scrollbar::-webkit-scrollbar-thumb {
+    background-color: rgb(var(--overlay) / 0.18);
+    border: 3px solid transparent;
+    background-clip: content-box;
+    border-radius: 9999px;
+  }
+  .thin-scrollbar:hover::-webkit-scrollbar-thumb {
+    background-color: rgb(var(--overlay) / 0.32);
+  }
+}
+
+@layer utilities {
+
+  .ambient-glow {
+    background-image: radial-gradient(
+      ellipse 90% 62% at 50% 34%,
+      rgb(var(--glow-rgb) / var(--glow-alpha)),
+      rgb(var(--glow-rgb) / 0) 72%
+    );
+  }
+
+  .ambient-glow-sm {
+    background-image: radial-gradient(
+      circle at 50% 50%,
+      rgb(var(--glow-rgb) / 0.3),
+      rgb(var(--glow-rgb) / 0)
+    );
+  }
+
+  .prose pre {
+    @apply my-0 bg-transparent p-0;
+  }
+  .prose pre code {
+    @apply bg-transparent p-0 text-inherit;
+  }
+  .prose pre code::before,
+  .prose pre code::after {
+    content: '';
+  }
+  .prose table {
+    @apply text-sm;
+  }
+  .prose thead th {
+    @apply bg-overlay/[0.03];
+  }
+  .prose th,
+  .prose td {
+    @apply border-overlay/[0.08] px-3 py-1.5;
+  }
+  .prose hr {
+    @apply border-overlay/[0.08];
+  }
+}
