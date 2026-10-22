@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Sidebar from '@/components/Sidebar';
 import ChatWindow from '@/components/ChatWindow';
+import SettingsModal from '@/components/SettingsModal';
 import { OllamaError, fetchModels, isAbortError, streamChat } from '@/lib/ollama';
 import { AgentError, respondToApproval, runAgent } from '@/lib/agentClient';
 import {
@@ -108,8 +109,22 @@ export default function Page() {
 
   useEffect(() => {
     const root = document.documentElement;
-    root.classList.toggle('dark', theme === 'dark');
-    root.style.colorScheme = theme;
+    const applyTheme = (isDark: boolean) => {
+      root.classList.toggle('dark', isDark);
+      root.style.colorScheme = isDark ? 'dark' : 'light';
+    };
+
+    if (theme === 'system') {
+      if (typeof window !== 'undefined' && typeof window.matchMedia === 'function') {
+        const media = window.matchMedia('(prefers-color-scheme: dark)');
+        applyTheme(media.matches);
+        const listener = (e: MediaQueryListEvent) => applyTheme(e.matches);
+        media.addEventListener('change', listener);
+        return () => media.removeEventListener('change', listener);
+      }
+    } else {
+      applyTheme(theme === 'dark');
+    }
   }, [theme]);
 
   const sessionsRef = useRef(sessions);
@@ -679,31 +694,14 @@ export default function Page() {
   return (
     <div className="flex h-full overflow-hidden">
       <Sidebar
-        models={models}
-        modelsLoading={modelsLoading}
-        selectedModel={selectedModel}
-        onSelectModel={setSelectedModel}
-        onRefreshModels={() => void refreshModels()}
         sessions={sortedSessions}
         activeId={activeId}
         streaming={streaming}
         onSelectSession={handleSelectSession}
         onNewChat={handleNewChat}
         onDeleteSession={handleDeleteSession}
-        systemPrompt={systemPrompt}
-        onSystemPromptChange={handleSystemPromptChange}
-        theme={theme}
-        onThemeChange={setTheme}
-        connection={connection}
         newChatShortcut={newChatShortcut}
-        mode={mode}
-        onModeChange={setMode}
-        workspace={workspace}
-        onWorkspaceChange={setWorkspace}
-        showJson={showJson}
-        onShowJsonChange={setShowJson}
-        settingsOpen={settingsOpen}
-        onToggleSettings={() => setSettingsOpen((v) => !v)}
+        onOpenSettings={() => setSettingsOpen(true)}
         open={sidebarOpen}
         onClose={() => setSidebarOpen(false)}
       />
@@ -716,6 +714,8 @@ export default function Page() {
         error={error}
         connection={connection}
         connectionMessage={connectionMessage}
+        mode={mode}
+        onModeChange={setMode}
         onSend={handleSend}
         onStop={handleStop}
         onRegenerate={handleRegenerate}
@@ -728,6 +728,24 @@ export default function Page() {
         onDecideTool={handleDecideTool}
         onNewChat={handleNewChat}
         showJson={showJson}
+      />
+
+      <SettingsModal
+        open={settingsOpen}
+        onClose={() => setSettingsOpen(false)}
+        models={models}
+        modelsLoading={modelsLoading}
+        selectedModel={selectedModel}
+        onSelectModel={setSelectedModel}
+        onRefreshModels={() => void refreshModels()}
+        workspace={workspace}
+        onWorkspaceChange={setWorkspace}
+        systemPrompt={systemPrompt}
+        onSystemPromptChange={handleSystemPromptChange}
+        theme={theme}
+        onThemeChange={setTheme}
+        showJson={showJson}
+        onShowJsonChange={setShowJson}
       />
     </div>
   );

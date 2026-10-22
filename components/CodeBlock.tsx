@@ -3,7 +3,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Check, Copy } from 'lucide-react';
 import { PrismLight as SyntaxHighlighter } from 'react-syntax-highlighter';
-import oneDark from 'react-syntax-highlighter/dist/esm/styles/prism/one-dark';
 import { writeToClipboard } from '@/lib/clipboard';
 
 import markup from 'react-syntax-highlighter/dist/esm/languages/prism/markup';
@@ -130,6 +129,67 @@ function resolveLanguage(raw?: string): string {
   return ALIASES[key] ?? 'markup';
 }
 
+const grayscaleTheme: Record<string, React.CSSProperties> = {
+  'code[class*="language-"]': {
+    color: 'inherit',
+    fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace',
+    fontSize: '12.5px',
+    lineHeight: '1.65',
+    direction: 'ltr',
+    textAlign: 'left',
+    whiteSpace: 'pre',
+    wordSpacing: 'normal',
+    wordBreak: 'normal',
+    tabSize: 2,
+    hyphens: 'none',
+  },
+  'pre[class*="language-"]': {
+    color: 'inherit',
+    fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace',
+    fontSize: '12.5px',
+    lineHeight: '1.65',
+    direction: 'ltr',
+    textAlign: 'left',
+    whiteSpace: 'pre',
+    wordSpacing: 'normal',
+    wordBreak: 'normal',
+    tabSize: 2,
+    hyphens: 'none',
+    margin: 0,
+    padding: '0.85rem 1rem',
+    background: 'transparent',
+  },
+  comment: { opacity: 0.6, fontStyle: 'italic' },
+  prolog: { opacity: 0.6, fontStyle: 'italic' },
+  doctype: { opacity: 0.6, fontStyle: 'italic' },
+  cdata: { opacity: 0.6, fontStyle: 'italic' },
+  punctuation: { opacity: 0.7 },
+  property: { fontWeight: '500' },
+  tag: { fontWeight: '700' },
+  boolean: { fontWeight: '700' },
+  number: { opacity: 0.9 },
+  constant: { fontWeight: '600' },
+  symbol: { opacity: 0.9 },
+  deleted: { opacity: 0.5, textDecoration: 'line-through' },
+  selector: { fontWeight: '600' },
+  'attr-name': { opacity: 0.9 },
+  string: { opacity: 0.85 },
+  char: { opacity: 0.85 },
+  builtin: { fontWeight: '600' },
+  inserted: { fontWeight: '600' },
+  operator: { opacity: 0.7 },
+  entity: { cursor: 'help' },
+  url: { textDecoration: 'underline' },
+  variable: { fontWeight: '500' },
+  atrule: { fontWeight: '600' },
+  'attr-value': { opacity: 0.85 },
+  function: { fontWeight: '600' },
+  'class-name': { fontWeight: '700' },
+  keyword: { fontWeight: '700' },
+  regex: { opacity: 0.85 },
+  important: { fontWeight: '700' },
+};
+
 const HIGHLIGHT_THROTTLE_MS = 120;
 
 function useThrottledValue<T>(value: T, intervalMs: number): T {
@@ -196,48 +256,44 @@ export default function CodeBlock({ code, language }: CodeBlockProps) {
   const lineCount = code.split('\n').length;
 
   return (
-    <div className="not-prose group/code my-4 overflow-hidden rounded-xl border border-white/[0.08] bg-[#0B0C10] shadow-lg shadow-black/20 ring-1 ring-inset ring-white/[0.02]">
-      <div className="flex items-center justify-between gap-3 border-b border-white/[0.06] bg-white/[0.02] px-3 py-1.5">
-        <div className="flex min-w-0 items-center gap-2">
-          <span className="truncate font-mono text-[11px] font-medium uppercase tracking-wider text-zinc-400">
+    <div className="not-prose my-3 overflow-hidden rounded-lg border border-border bg-panel text-foreground">
+      <div className="flex items-center justify-between border-b border-border bg-panel px-3 py-1.5 text-xs">
+        <div className="flex items-center gap-2">
+          <span className="font-mono text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
             {label}
           </span>
-          <span className="shrink-0 rounded bg-white/[0.06] px-1.5 py-0.5 font-mono text-[10px] tabular-nums text-zinc-500">
+          <span className="rounded border border-border bg-muted/60 px-1 py-0.2 font-mono text-[10px] text-muted-foreground">
             {lineCount} {lineCount === 1 ? 'line' : 'lines'}
           </span>
         </div>
         <button
           type="button"
           onClick={copy}
-          aria-label={copied ? 'Code copied to clipboard' : 'Copy code to clipboard'}
-          className={`focus-ring flex shrink-0 items-center gap-1.5 rounded-md px-2 py-1 text-[11px] font-medium transition-all duration-200 ${
-            copied
-              ? 'bg-emerald-500/10 text-emerald-400'
-              : 'text-zinc-400 hover:bg-white/[0.08] hover:text-zinc-100'
-          }`}
+          aria-label={copied ? 'Code copied' : 'Copy code'}
+          className="focus-ring flex items-center gap-1 rounded px-1.5 py-0.5 text-[11px] font-medium text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
         >
           {copied ? (
-            <span key="copied" className="animate-scale-in flex items-center gap-1.5">
-              <Check className="h-3.5 w-3.5" />
-              <span>Copied!</span>
-            </span>
+            <>
+              <Check className="h-3.5 w-3.5 text-foreground" />
+              <span className="text-foreground">Copied</span>
+            </>
           ) : (
-            <span key="copy" className="flex items-center gap-1.5">
+            <>
               <Copy className="h-3.5 w-3.5" />
               <span>Copy</span>
-            </span>
+            </>
           )}
         </button>
       </div>
 
-      <div className="overflow-x-auto">
+      <div className="overflow-x-auto thin-scrollbar">
         <SyntaxHighlighter
           language={resolved}
-          style={oneDark}
+          style={grayscaleTheme}
           PreTag="div"
           customStyle={{
             margin: 0,
-            padding: '0.9rem 1rem',
+            padding: '0.85rem 1rem',
             background: 'transparent',
             fontSize: '12.5px',
             lineHeight: '1.65',

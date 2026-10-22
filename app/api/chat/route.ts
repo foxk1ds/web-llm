@@ -7,7 +7,7 @@ export const maxDuration = 300;
 
 const OLLAMA_BASE_URL = process.env.OLLAMA_BASE_URL ?? 'http://127.0.0.1:11434';
 
-const CONNECT_TIMEOUT_MS = 10_000;
+const CONNECT_TIMEOUT_MS = 120_000;
 
 export async function POST(req: Request) {
   let body: ChatRequestBody;

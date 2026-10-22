@@ -82,29 +82,37 @@ export function saveActiveId(id: string | null): void {
 export const DEFAULT_SETTINGS: Settings = {
   selectedModel: null,
   systemPrompt: '',
-  theme: 'dark',
-  mode: 'agent',
+  theme: 'system',
+  mode: 'chat',
   workspace: null,
+  showJson: false,
 };
 
 export function loadSettings(): Settings {
-  const raw = read<Partial<Settings>>(SETTINGS_KEY, {});
-  const theme: ThemeMode = raw.theme === 'light' ? 'light' : raw.theme === 'dark' ? 'dark' : guessTheme();
-  return {
-    selectedModel: typeof raw.selectedModel === 'string' ? raw.selectedModel : null,
-    systemPrompt: typeof raw.systemPrompt === 'string' ? raw.systemPrompt : '',
-    theme,
-    mode: raw.mode === 'chat' ? 'chat' : 'agent',
-    workspace: typeof raw.workspace === 'string' && raw.workspace ? raw.workspace : null,
-    showJson: raw.showJson === true,
-  };
+  try {
+    const raw = read<Partial<Settings>>(SETTINGS_KEY, {});
+    const theme: ThemeMode =
+      raw.theme === 'light' || raw.theme === 'dark' || raw.theme === 'system'
+        ? raw.theme
+        : DEFAULT_SETTINGS.theme;
+
+    return {
+      selectedModel: typeof raw.selectedModel === 'string' ? raw.selectedModel : DEFAULT_SETTINGS.selectedModel,
+      systemPrompt: typeof raw.systemPrompt === 'string' ? raw.systemPrompt : DEFAULT_SETTINGS.systemPrompt,
+      theme,
+      mode: raw.mode === 'agent' ? 'agent' : 'chat',
+      workspace: typeof raw.workspace === 'string' && raw.workspace ? raw.workspace : DEFAULT_SETTINGS.workspace,
+      showJson: raw.showJson === true,
+    };
+  } catch {
+    return DEFAULT_SETTINGS;
+  }
 }
 
 export function saveSettings(settings: Settings): void {
-  write(SETTINGS_KEY, settings);
-}
-
-function guessTheme(): ThemeMode {
-  if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return 'dark';
-  return window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
+  try {
+    write(SETTINGS_KEY, settings);
+  } catch {
+    // Fail silently if localStorage quota exceeded or unavailable
+  }
 }

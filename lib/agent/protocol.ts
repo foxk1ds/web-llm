@@ -98,9 +98,29 @@ function normalize(
     }
   }
 
+  let parsedArgs = (args && typeof args === 'object' ? { ...args } : {}) as Record<string, unknown>;
+
+  // Accept alternate argument names (file_path, filename, file for path; contents, text, code for content)
+  if (parsedArgs.path === undefined || parsedArgs.path === null || parsedArgs.path === '') {
+    for (const alias of ['file_path', 'filepath', 'filename', 'file']) {
+      if (typeof parsedArgs[alias] === 'string' && (parsedArgs[alias] as string).trim()) {
+        parsedArgs.path = (parsedArgs[alias] as string).trim();
+        break;
+      }
+    }
+  }
+  if (parsedArgs.content === undefined || parsedArgs.content === null) {
+    for (const alias of ['contents', 'text', 'code']) {
+      if (typeof parsedArgs[alias] === 'string') {
+        parsedArgs.content = parsedArgs[alias];
+        break;
+      }
+    }
+  }
+
   return {
     name,
-    arguments: (args && typeof args === 'object' ? args : {}) as Record<string, unknown>,
+    arguments: parsedArgs,
   };
 }
 

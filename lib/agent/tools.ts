@@ -43,20 +43,68 @@ export interface RegisteredTool {
   run(args: Record<string, unknown>, ctx: ToolContext): Promise<string>;
 }
 
-async function resolveInsideWorkspace(workspace: string, requested: string): Promise<string> {
-  const root = await realpath(path.resolve(workspace)).catch(() => {
-    throw new ToolError(`Workspace does not exist: ${workspace}`);
-  });
+export function cleanWorkspacePath(ws: string): string {
+  let clean = ws.trim();
+  clean = path.normalize(clean);
+  if (clean.length > 3 && (clean.endsWith('\\') || clean.endsWith('/'))) {
+    clean = clean.slice(0, -1);
+  }
+  return path.resolve(clean);
+}
 
-  const candidate = path.resolve(root, requested);
+export function cleanRequestedPath(requested: string, workspaceRoot: string): string {
+  let req = requested.trim();
+  if ((req.startsWith('"') && req.endsWith('"')) || (req.startsWith("'") && req.endsWith("'"))) {
+    req = req.slice(1, -1).trim();
+  }
+  const normRoot = path.normalize(workspaceRoot).toLowerCase();
+  const normReq = path.normalize(req).toLowerCase();
+  if (normReq.startsWith(normRoot)) {
+    req = req.slice(workspaceRoot.length);
+  }
+  req = req.replace(/^([/\\]|\.[/\\])+/, '');
+  return req || '.';
+}
+
+async function ensureWorkspaceRoot(workspace: string): Promise<string> {
+  const rootPath = cleanWorkspacePath(workspace);
+  await mkdir(rootPath, { recursive: true }).catch(() => {});
+  const real = await realpath(rootPath).catch(() => rootPath);
+  return real;
+}
+
+export function asPath(args: Record<string, unknown>): string | undefined {
+  for (const key of ['path', 'file_path', 'filepath', 'filename', 'file', 'target', 'dest']) {
+    const value = args[key];
+    if (typeof value === 'string' && value.trim()) return value.trim();
+  }
+  return undefined;
+}
+
+export function asContent(args: Record<string, unknown>): string | undefined {
+  for (const key of ['content', 'contents', 'text', 'code', 'data', 'body']) {
+    const value = args[key];
+    if (typeof value === 'string') return value;
+  }
+  return undefined;
+}
+
+async function resolveInsideWorkspace(workspace: string, requested: string): Promise<string> {
+  const root = await ensureWorkspaceRoot(workspace);
+  const cleanReq = cleanRequestedPath(requested, root);
+  const candidate = path.resolve(root, cleanReq);
 
   const assertInside = (candidatePath: string, resolved: string) => {
     const rel = path.relative(resolved, candidatePath);
     if (rel === '') return;
     if (rel.startsWith('..') || path.isAbsolute(rel)) {
-      throw new ToolError(
-        `Path escapes the workspace and was refused: ${requested}\nThe agent may only read inside ${root}.`,
-      );
+      const normCand = path.normalize(candidatePath).toLowerCase();
+      const normRoot = path.normalize(resolved).toLowerCase();
+      if (!normCand.startsWith(normRoot)) {
+        throw new ToolError(
+          `Path escapes the workspace and was refused: ${requested}\nThe agent may only read inside ${root}.`,
+        );
+      }
     }
   };
 
@@ -137,7 +185,7 @@ function wrapResult(toolName: string, body: string): string {
 }
 
 async function listFiles(args: Record<string, unknown>, ctx: ToolContext): Promise<string> {
-  const requested = asString(args, 'path') ?? '.';
+  const requested = asPath(args) ?? '.';
   const maxDepth = Math.min(Math.max(asNumber(args, 'depth') ?? 3, 1), 6);
   const root = await resolveInsideWorkspace(ctx.workspace, requested);
 
@@ -178,8 +226,9 @@ async function listFiles(args: Record<string, unknown>, ctx: ToolContext): Promi
 }
 
 async function readFileTool(args: Record<string, unknown>, ctx: ToolContext): Promise<string> {
-  const requested = asString(args, 'path');
-  if (!requested) throw new ToolError('`path` is required.');
+  const requested = asPath(args);
+  if (!requested) throw new ToolError('`path` is required (accepted: path, file_path, filename, file).');
+  args.path = requested;
 
   const target = await resolveInsideWorkspace(ctx.workspace, requested);
   const info = await stat(target).catch(() => null);
@@ -226,7 +275,7 @@ async function grepFiles(args: Record<string, unknown>, ctx: ToolContext): Promi
     regex = new RegExp(pattern.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i');
   }
 
-  const requested = asString(args, 'path') ?? '.';
+  const requested = asPath(args) ?? '.';
   const root = await resolveInsideWorkspace(ctx.workspace, requested);
 
   const matches: string[] = [];
@@ -330,16 +379,21 @@ async function fetchUrl(args: Record<string, unknown>, ctx: ToolContext): Promis
 }
 
 async function resolveForWrite(workspace: string, requested: string): Promise<string> {
-  const root = await realpath(path.resolve(workspace)).catch(() => {
-    throw new ToolError(`Workspace does not exist: ${workspace}`);
-  });
+  const root = await ensureWorkspaceRoot(workspace);
+  const cleanReq = cleanRequestedPath(requested, root);
+  const candidate = path.resolve(root, cleanReq);
 
-  const candidate = path.resolve(root, requested);
   const rel = path.relative(root, candidate);
   if (rel === '') throw new ToolError('Refusing to write to the workspace root itself.');
   if (rel.startsWith('..') || path.isAbsolute(rel)) {
-    throw new ToolError(`Path escapes the workspace and was refused: ${requested}`);
+    const normCand = path.normalize(candidate).toLowerCase();
+    const normRoot = path.normalize(root).toLowerCase();
+    if (!normCand.startsWith(normRoot)) {
+      throw new ToolError(`Path escapes the workspace and was refused: ${requested}`);
+    }
   }
+
+  await mkdir(path.dirname(candidate), { recursive: true }).catch(() => {});
 
   let dir = path.dirname(candidate);
   for (;;) {
@@ -347,7 +401,11 @@ async function resolveForWrite(workspace: string, requested: string): Promise<st
     if (realDir) {
       const relDir = path.relative(root, realDir);
       if (relDir.startsWith('..') || path.isAbsolute(relDir)) {
-        throw new ToolError(`Path escapes the workspace through a symlinked directory: ${requested}`);
+        const normDir = path.normalize(realDir).toLowerCase();
+        const normRoot = path.normalize(root).toLowerCase();
+        if (!normDir.startsWith(normRoot)) {
+          throw new ToolError(`Path escapes the workspace through a symlinked directory: ${requested}`);
+        }
       }
       break;
     }
@@ -360,7 +418,11 @@ async function resolveForWrite(workspace: string, requested: string): Promise<st
   if (existing) {
     const relFile = path.relative(root, existing);
     if (relFile.startsWith('..') || path.isAbsolute(relFile)) {
-      throw new ToolError(`Refusing to write through a symlink leaving the workspace: ${requested}`);
+      const normEx = path.normalize(existing).toLowerCase();
+      const normRoot = path.normalize(root).toLowerCase();
+      if (!normEx.startsWith(normRoot)) {
+        throw new ToolError(`Refusing to write through a symlink leaving the workspace: ${requested}`);
+      }
     }
     return existing;
   }
@@ -369,25 +431,30 @@ async function resolveForWrite(workspace: string, requested: string): Promise<st
 }
 
 async function writeFileTool(args: Record<string, unknown>, ctx: ToolContext): Promise<string> {
-  const requested = asString(args, 'path');
-  if (!requested) throw new ToolError('`path` is required.');
-  if (typeof args.content !== 'string') throw new ToolError('`content` must be a string.');
+  const requested = asPath(args);
+  if (!requested) throw new ToolError('`path` is required (accepted: path, file_path, filename, file).');
+  const content = asContent(args);
+  if (typeof content !== 'string') throw new ToolError('`content` must be a string (accepted: content, contents, text, code).');
+
+  args.path = requested;
+  args.content = content;
 
   const target = await resolveForWrite(ctx.workspace, requested);
   const existed = await stat(target).catch(() => null);
 
   await mkdir(path.dirname(target), { recursive: true });
-  await writeFile(target, args.content, 'utf8');
+  await writeFile(target, content, 'utf8');
 
-  const lines = args.content.split('\n').length;
-  const bytes = Buffer.byteLength(args.content, 'utf8');
+  const lines = content.split('\n').length;
+  const bytes = Buffer.byteLength(content, 'utf8');
   const relative = path.relative(path.resolve(ctx.workspace), target).split(path.sep).join('/');
   return `${existed ? 'Overwrote' : 'Created'} ${relative} (${lines} lines, ${bytes} bytes).`;
 }
 
 async function editFileTool(args: Record<string, unknown>, ctx: ToolContext): Promise<string> {
-  const requested = asString(args, 'path');
-  if (!requested) throw new ToolError('`path` is required.');
+  const requested = asPath(args);
+  if (!requested) throw new ToolError('`path` is required (accepted: path, file_path, filename, file).');
+  args.path = requested;
 
   const find = args.find;
   const replace = args.replace;
@@ -512,11 +579,12 @@ export function buildApprovalPreview(
     return { preview: `$ ${command}`, risky: Boolean(hit), reason: hit?.reason };
   }
 
-  const target = typeof args.path === 'string' ? args.path : JSON.stringify(args);
+  const pathVal = asPath(args);
+  const target = pathVal ?? (typeof args.path === 'string' ? args.path : JSON.stringify(args));
   const pathHit = RISKY_FILE_PATTERNS.find((r) => r.pattern.test(target));
 
   if (name === 'write_file') {
-    const content = typeof args.content === 'string' ? args.content : '';
+    const content = asContent(args) ?? (typeof args.content === 'string' ? args.content : '');
     const lines = content.split('\n');
     const shown = lines.slice(0, 40).map((l) => `+ ${l}`).join('\n');
     const more = lines.length > 40 ? `\n… (${lines.length - 40} more lines)` : '';
@@ -688,16 +756,33 @@ export async function runTool(
   ctx: ToolContext,
 ): Promise<ToolOutcome> {
   const tool = TOOLS.find((t) => t.definition.name === name);
-  if (!tool) return { ok: false, prompt: '', display: `Unknown tool: ${name}` };
+  if (!tool) {
+    const available = Array.from(TOOL_NAMES).join(', ');
+    return {
+      ok: false,
+      prompt: wrapResult(name, `Unknown tool "${name}". Available tools: ${available}`),
+      display: `Unknown tool: ${name}`,
+    };
+  }
 
   try {
     const output = await tool.run(args, ctx);
     return { ok: true, prompt: wrapResult(name, output), display: output };
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
+    const keysReceived = Object.keys(args);
+    const schema = tool.definition.parameters;
+    const detailedError = [
+      `ERROR in tool "${name}": ${message}`,
+      `Keys received in arguments: ${keysReceived.length ? JSON.stringify(keysReceived) : '[] (no arguments provided)'}`,
+      `Exact schema for "${name}":`,
+      JSON.stringify(schema, null, 2),
+      `Please review the required parameters above, correct the arguments, and call "${name}" again with the required fields.`,
+    ].join('\n\n');
+
     return {
       ok: false,
-      prompt: wrapResult(name, `ERROR: ${message}`),
+      prompt: wrapResult(name, detailedError),
       display: `ERROR: ${message}`,
     };
   }

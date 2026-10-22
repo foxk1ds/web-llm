@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
-import { stat } from 'node:fs/promises';
-import path from 'node:path';
+import { mkdir, stat } from 'node:fs/promises';
 import { runAgentLoop } from '@/lib/agent/loop';
+import { cleanWorkspacePath } from '@/lib/agent/tools';
 import { cancelRunApprovals, waitForApproval } from '@/lib/agent/approvals';
 import type { AgentEvent, AgentRequestBody, ApiErrorBody } from '@/types';
 
@@ -31,7 +31,8 @@ export async function POST(req: Request) {
       ? body.workspace.trim()
       : (process.env.AGENT_WORKSPACE ?? process.cwd());
 
-  const workspace = path.resolve(requestedWorkspace);
+  const workspace = cleanWorkspacePath(requestedWorkspace);
+  await mkdir(workspace, { recursive: true }).catch(() => {});
   const info = await stat(workspace).catch(() => null);
   if (!info?.isDirectory()) {
     return errorResponse(`Workspace is not a readable directory: ${workspace}`, 'BAD_REQUEST', 400);
@@ -54,7 +55,9 @@ export async function POST(req: Request) {
   const encoder = new TextEncoder();
   const stream = new ReadableStream<Uint8Array>({
     async start(streamController) {
+      let isDone = false;
       const emit = (event: AgentEvent) => {
+        if (event.type === 'done') isDone = true;
         try {
           streamController.enqueue(encoder.encode(`${JSON.stringify(event)}\n`));
         } catch {}
@@ -80,6 +83,9 @@ export async function POST(req: Request) {
         });
         emit({ type: 'done', reason: 'error' });
       } finally {
+        if (!isDone) {
+          emit({ type: 'done', reason: 'error' });
+        }
         cancelRunApprovals(runId);
         try {
           streamController.close();

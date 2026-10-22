@@ -11,6 +11,10 @@ const config: Config = {
         app: 'rgb(var(--app-bg) / <alpha-value>)',
         panel: 'rgb(var(--panel-bg) / <alpha-value>)',
         elevated: 'rgb(var(--elevated-bg) / <alpha-value>)',
+        border: 'rgb(var(--border) / <alpha-value>)',
+        muted: 'rgb(var(--muted) / <alpha-value>)',
+        'muted-foreground': 'rgb(var(--muted-foreground) / <alpha-value>)',
+        foreground: 'rgb(var(--foreground) / <alpha-value>)',
       },
       fontFamily: {
         sans: [
@@ -25,29 +29,27 @@ const config: Config = {
         ],
         mono: ['ui-monospace', 'SFMono-Regular', 'Menlo', 'Consolas', 'Liberation Mono', 'monospace'],
       },
+      borderRadius: {
+        DEFAULT: '0.5rem',
+      },
       keyframes: {
         blink: {
           '0%, 100%': { opacity: '1' },
           '50%': { opacity: '0' },
-        },
-        'fade-up': {
-          from: { opacity: '0', transform: 'translateY(6px)' },
-          to: { opacity: '1', transform: 'translateY(0)' },
         },
         'fade-in': {
           from: { opacity: '0' },
           to: { opacity: '1' },
         },
         'scale-in': {
-          from: { opacity: '0', transform: 'translateY(-4px) scale(0.985)' },
-          to: { opacity: '1', transform: 'translateY(0) scale(1)' },
+          from: { opacity: '0', transform: 'scale(0.98)' },
+          to: { opacity: '1', transform: 'scale(1)' },
         },
       },
       animation: {
         blink: 'blink 1.1s step-end infinite',
-        'fade-up': 'fade-up 0.22s ease-out both',
-        'fade-in': 'fade-in 0.18s ease-out both',
-        'scale-in': 'scale-in 0.14s ease-out both',
+        'fade-in': 'fade-in 0.15s ease-out both',
+        'scale-in': 'scale-in 0.12s ease-out both',
       },
     },
   },

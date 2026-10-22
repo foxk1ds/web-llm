@@ -12,7 +12,6 @@ import {
   Copy,
   Eye,
   RefreshCw,
-  Sparkles,
 } from 'lucide-react';
 import CodeBlock from './CodeBlock';
 import ToolCallCard from './ToolCallCard';
@@ -49,7 +48,7 @@ function buildMarkdownComponents(hideHarnessJson: boolean): Components {
           href={href}
           target="_blank"
           rel="noopener noreferrer"
-          className="font-medium text-sky-600 underline decoration-sky-600/30 underline-offset-2 hover:decoration-sky-600 dark:text-sky-400 dark:decoration-sky-400/30 dark:hover:decoration-sky-400"
+          className="font-medium text-foreground underline decoration-muted-foreground/40 underline-offset-2 hover:decoration-foreground transition-colors"
         >
           {children}
         </a>
@@ -58,8 +57,8 @@ function buildMarkdownComponents(hideHarnessJson: boolean): Components {
 
     table({ children }) {
       return (
-        <div className="my-4 overflow-x-auto rounded-lg border border-zinc-200 dark:border-zinc-800">
-          <table className="w-full">{children}</table>
+        <div className="my-4 overflow-x-auto rounded-lg border border-border">
+          <table className="w-full text-sm">{children}</table>
         </div>
       );
     },
@@ -76,7 +75,7 @@ function JsonDisclosure({ code, language }: { code: string; language?: string })
         <button
           type="button"
           onClick={() => setRevealed(false)}
-          className="focus-ring absolute right-3 top-11 z-10 flex items-center gap-1 rounded-md bg-white/10 px-2 py-1 text-[11px] font-medium text-zinc-300 backdrop-blur transition-colors hover:bg-white/20"
+          className="focus-ring absolute right-3 top-10 z-10 flex items-center gap-1 rounded-md border border-border bg-panel px-2 py-1 text-[11px] font-medium text-foreground shadow-xs transition-colors hover:bg-muted"
         >
           <Eye className="h-3 w-3" />
           Hide
@@ -88,15 +87,15 @@ function JsonDisclosure({ code, language }: { code: string; language?: string })
   const lines = code.split('\n').length;
 
   return (
-    <div className="not-prose my-4 flex items-center gap-2.5 rounded-xl border border-overlay/[0.08] bg-overlay/[0.02] px-3.5 py-2.5">
-      <Braces className="h-3.5 w-3.5 shrink-0 text-zinc-500 dark:text-zinc-400" />
-      <span className="min-w-0 flex-1 text-[12px] text-zinc-500 dark:text-zinc-400">
-        JSON output · {lines} {lines === 1 ? 'line' : 'lines'} · hidden
+    <div className="not-prose my-3 flex items-center gap-2.5 rounded-lg border border-border bg-muted/30 px-3 py-2">
+      <Braces className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+      <span className="min-w-0 flex-1 text-xs text-muted-foreground font-mono">
+        JSON payload · {lines} {lines === 1 ? 'line' : 'lines'} · collapsed
       </span>
       <button
         type="button"
         onClick={() => setRevealed(true)}
-        className="focus-ring shrink-0 rounded-md border border-overlay/[0.1] bg-overlay/[0.04] px-2 py-1 text-[11px] font-medium text-zinc-600 transition-colors hover:bg-overlay/[0.08] dark:text-zinc-300"
+        className="focus-ring shrink-0 rounded border border-border bg-panel px-2 py-1 text-[11px] font-medium text-foreground transition-colors hover:bg-muted"
       >
         Show
       </button>
@@ -106,12 +105,12 @@ function JsonDisclosure({ code, language }: { code: string; language?: string })
 
 const PROSE_CLASSES = [
   'prose prose-zinc max-w-none dark:prose-invert',
-  'prose-headings:scroll-mt-20 prose-headings:font-semibold prose-headings:tracking-tight',
+  'prose-headings:scroll-mt-20 prose-headings:font-semibold prose-headings:tracking-tight prose-headings:text-foreground',
   'prose-h1:text-xl prose-h2:text-lg prose-h3:text-base',
-  'prose-p:text-[15px] prose-p:leading-7',
-  'prose-li:text-[15px] prose-li:leading-7 prose-li:marker:text-zinc-400 dark:prose-li:marker:text-zinc-600',
-  'prose-strong:font-semibold prose-strong:text-zinc-900 dark:prose-strong:text-zinc-50',
-  'prose-blockquote:border-l-2 prose-blockquote:border-zinc-300 prose-blockquote:font-normal prose-blockquote:not-italic dark:prose-blockquote:border-zinc-700',
+  'prose-p:text-[14.5px] prose-p:leading-7 prose-p:text-foreground',
+  'prose-li:text-[14.5px] prose-li:leading-7 prose-li:marker:text-muted-foreground',
+  'prose-strong:font-semibold prose-strong:text-foreground',
+  'prose-blockquote:border-l-2 prose-blockquote:border-border prose-blockquote:font-normal prose-blockquote:not-italic prose-blockquote:text-muted-foreground',
   'prose-img:rounded-lg',
 ].join(' ');
 
@@ -158,11 +157,14 @@ const MessageBubble = memo(MessageBubbleBase, (prev, next) => {
 
 export default MessageBubble;
 
+/**
+ * User messages: in a subtle gray bubble on the right
+ */
 function UserMessage({ message }: { message: Message }) {
   return (
     <div className="flex justify-end px-4 py-3 sm:px-6">
-      <div className="max-w-[85%] rounded-2xl rounded-tr-sm border border-overlay/[0.1] bg-overlay/[0.06] px-4 py-3">
-        <p className="whitespace-pre-wrap break-words text-[14.5px] leading-7 text-zinc-800 dark:text-zinc-100">
+      <div className="max-w-[80%] rounded-lg border border-border bg-muted/60 px-4 py-2.5">
+        <p className="whitespace-pre-wrap break-words text-[14px] leading-relaxed text-foreground font-sans">
           {message.content}
         </p>
       </div>
@@ -179,6 +181,9 @@ interface AssistantMessageProps {
   showJson?: boolean;
 }
 
+/**
+ * Assistant messages: full-width with NO bubble
+ */
 function AssistantMessage({
   message,
   streaming,
@@ -195,15 +200,12 @@ function AssistantMessage({
   );
 
   return (
-    <div className="group/msg flex gap-3 px-4 py-4 sm:px-6">
-      <div className="relative mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border border-overlay/[0.1] bg-overlay/[0.05]">
-        <Sparkles className="h-3.5 w-3.5 text-indigo-500 dark:text-indigo-300" />
-      </div>
-
-      <div className="min-w-0 flex-1">
+    <div className="group/msg w-full px-4 py-4 sm:px-6 text-foreground">
+      <div className="w-full">
+        {/* Thinking Panel (DeepSeek-R1 / CoT models) */}
         {message.thinking ? <ThinkingPanel text={message.thinking} streaming={streaming} /> : null}
 
-        {}
+        {/* Tool Call Cards */}
         {message.toolCalls?.length ? (
           <div className="mb-3">
             {message.toolCalls.map((call) => (
@@ -220,43 +222,46 @@ function AssistantMessage({
           </div>
         ) : null}
 
-        <>
-          {isError && !message.content ? (
-            <ErrorCard message={message.error ?? 'Generation failed.'} onRetry={canRegenerate ? onRegenerate : undefined} />
-          ) : null}
-          {!isError || message.content ? (
-            <>
-            {showEmptyPulse ? (
-              <div className="flex items-center gap-1.5 py-1" aria-label="Generating response">
-                <Dot delay="0ms" />
-                <Dot delay="150ms" />
-                <Dot delay="300ms" />
-              </div>
-            ) : null}
+        {/* Error message card */}
+        {isError && !message.content ? (
+          <ErrorCard message={message.error ?? 'Generation failed.'} onRetry={canRegenerate ? onRegenerate : undefined} />
+        ) : null}
 
-            {message.content ? (
-              <div className={PROSE_CLASSES}>
-                <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>
-                  {message.content}
-                </ReactMarkdown>
-                {streaming ? (
-                  <span
-                    aria-hidden
-                    className="ml-0.5 inline-block h-[1.05em] w-[2px] translate-y-[0.15em] animate-blink rounded-sm bg-zinc-500 align-baseline dark:bg-zinc-400"
-                  />
-                ) : null}
-              </div>
-            ) : null}
+        {/* Streaming placeholder indicator */}
+        {showEmptyPulse ? (
+          <div className="flex items-center gap-1.5 py-1" aria-label="Generating response">
+            <span className="h-1.5 w-1.5 rounded-full bg-muted-foreground animate-pulse" />
+            <span className="h-1.5 w-1.5 rounded-full bg-muted-foreground animate-pulse [animation-delay:150ms]" />
+            <span className="h-1.5 w-1.5 rounded-full bg-muted-foreground animate-pulse [animation-delay:300ms]" />
+          </div>
+        ) : null}
 
-            {!streaming && message.content ? (
-              <MessageFooter message={message} canRegenerate={canRegenerate} onRegenerate={onRegenerate} />
+        {/* Full-width Assistant Message Content */}
+        {message.content ? (
+          <div className={PROSE_CLASSES}>
+            <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>
+              {message.content}
+            </ReactMarkdown>
+            {streaming ? (
+              <span
+                aria-hidden
+                className="ml-0.5 inline-block h-[1.1em] w-[2px] translate-y-[0.15em] animate-blink bg-foreground align-baseline"
+              />
             ) : null}
-            </>
-          ) : null}
-          {isError && message.content ? (
+          </div>
+        ) : null}
+
+        {/* Error appended if partially generated */}
+        {isError && message.content ? (
+          <div className="mt-2">
             <ErrorCard message={message.error ?? 'Generation failed.'} onRetry={canRegenerate ? onRegenerate : undefined} />
-          ) : null}
-        </>
+          </div>
+        ) : null}
+
+        {/* Footer actions: Copy, Regenerate, stats */}
+        {!streaming && message.content ? (
+          <MessageFooter message={message} canRegenerate={canRegenerate} onRegenerate={onRegenerate} />
+        ) : null}
       </div>
     </div>
   );
@@ -283,7 +288,7 @@ function MessageFooter({
   const speed = message.stats?.tokensPerSecond;
 
   return (
-    <div className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] text-zinc-500 opacity-70 transition-opacity group-hover/msg:opacity-100 dark:text-zinc-400">
+    <div className="mt-3 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground">
       {message.model ? <span className="font-mono">{modelBadgeLabel(message.model)}</span> : null}
 
       <span aria-hidden>·</span>
@@ -294,7 +299,7 @@ function MessageFooter({
       {typeof speed === 'number' && speed > 0 ? (
         <>
           <span aria-hidden>·</span>
-          <span title="Generation speed reported by Ollama">{speed.toFixed(1)} tok/s</span>
+          <span title="Generation speed">{speed.toFixed(1)} tok/s</span>
         </>
       ) : null}
 
@@ -307,40 +312,29 @@ function MessageFooter({
 
       <span aria-hidden>·</span>
       <div className="flex items-center gap-1">
-        <FooterButton onClick={copy} label={copied ? 'Copied' : 'Copy reply'}>
-          {copied ? <Check className="h-3 w-3 text-emerald-500" /> : <Copy className="h-3 w-3" />}
-          <span>{copied ? 'Copied' : 'Copy'}</span>
-        </FooterButton>
+        <button
+          type="button"
+          onClick={copy}
+          aria-label={copied ? 'Copied' : 'Copy message'}
+          className="focus-ring flex items-center gap-1 rounded px-1.5 py-0.5 text-xs text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+        >
+          {copied ? <Check className="h-3 w-3 text-foreground" /> : <Copy className="h-3 w-3" />}
+          <span className={copied ? 'text-foreground font-medium' : ''}>{copied ? 'Copied' : 'Copy'}</span>
+        </button>
 
         {canRegenerate && onRegenerate ? (
-          <FooterButton onClick={onRegenerate} label="Regenerate response">
+          <button
+            type="button"
+            onClick={onRegenerate}
+            aria-label="Regenerate reply"
+            className="focus-ring flex items-center gap-1 rounded px-1.5 py-0.5 text-xs text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+          >
             <RefreshCw className="h-3 w-3" />
             <span>Regenerate</span>
-          </FooterButton>
+          </button>
         ) : null}
       </div>
     </div>
-  );
-}
-
-function FooterButton({
-  onClick,
-  label,
-  children,
-}: {
-  onClick: () => void;
-  label: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      aria-label={label}
-      className="focus-ring flex items-center gap-1 rounded-md px-1.5 py-1 text-[11px] text-zinc-500 transition-colors hover:bg-overlay/[0.06] hover:text-zinc-800 dark:hover:text-zinc-100"
-    >
-      {children}
-    </button>
   );
 }
 
@@ -348,22 +342,22 @@ function ThinkingPanel({ text, streaming }: { text: string; streaming?: boolean 
   const [open, setOpen] = useState(false);
 
   return (
-    <div className="mb-3 overflow-hidden rounded-xl border border-overlay/[0.08] bg-overlay/[0.03]">
+    <div className="mb-3 overflow-hidden rounded-lg border border-border bg-muted/30">
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
         aria-expanded={open}
-        className="focus-ring flex w-full items-center gap-2 px-3 py-2 text-left text-xs font-medium text-zinc-500 transition-colors hover:text-zinc-800 dark:text-zinc-400 dark:hover:text-zinc-200"
+        className="focus-ring flex w-full items-center gap-2 px-3 py-2 text-left text-xs font-medium text-muted-foreground hover:text-foreground transition-colors"
       >
         <Brain className="h-3.5 w-3.5 shrink-0" />
         <span>{streaming ? 'Thinking…' : 'Thought process'}</span>
         <ChevronRight
-          className={`ml-auto h-3.5 w-3.5 shrink-0 transition-transform duration-200 ${open ? 'rotate-90' : ''}`}
+          className={`ml-auto h-3.5 w-3.5 shrink-0 transition-transform duration-150 ${open ? 'rotate-90' : ''}`}
         />
       </button>
       {open ? (
-        <div className="thin-scrollbar max-h-72 overflow-y-auto border-t border-overlay/[0.08] px-3 py-2">
-          <pre className="whitespace-pre-wrap break-words font-mono text-[11.5px] leading-relaxed text-zinc-500 dark:text-zinc-400">
+        <div className="thin-scrollbar max-h-72 overflow-y-auto border-t border-border px-3 py-2 bg-panel">
+          <pre className="whitespace-pre-wrap break-words font-mono text-xs leading-relaxed text-muted-foreground">
             {text}
           </pre>
         </div>
@@ -374,19 +368,19 @@ function ThinkingPanel({ text, streaming }: { text: string; streaming?: boolean 
 
 function ErrorCard({ message, onRetry }: { message: string; onRetry?: () => void }) {
   return (
-    <div className="rounded-xl border border-red-500/25 bg-red-500/[0.06] px-3.5 py-3">
-      <div className="flex gap-2.5">
-        <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-red-500 dark:text-red-400" />
+    <div className="rounded-lg border border-red-500/30 bg-red-500/[0.04] p-3">
+      <div className="flex gap-2">
+        <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-red-500" />
         <div className="min-w-0 flex-1">
-          <p className="text-sm font-medium text-red-700 dark:text-red-300">Generation failed</p>
-          <p className="mt-1 break-words text-[13px] leading-6 text-red-700/90 dark:text-red-300/80">
+          <p className="text-xs font-semibold text-red-600 dark:text-red-400">Generation failed</p>
+          <p className="mt-1 break-words text-xs text-red-600/90 dark:text-red-400/90 leading-relaxed">
             {message}
           </p>
           {onRetry ? (
             <button
               type="button"
               onClick={onRetry}
-              className="focus-ring mt-2 flex items-center gap-1.5 rounded-md border border-red-500/30 bg-red-500/10 px-2 py-1 text-xs font-medium text-red-700 transition-colors hover:bg-red-500/20 dark:text-red-300"
+              className="focus-ring mt-2 flex items-center gap-1.5 rounded border border-red-500/30 bg-red-500/10 px-2 py-1 text-xs font-medium text-red-600 hover:bg-red-500/20 dark:text-red-400 transition-colors"
             >
               <RefreshCw className="h-3 w-3" />
               Try again
@@ -395,14 +389,5 @@ function ErrorCard({ message, onRetry }: { message: string; onRetry?: () => void
         </div>
       </div>
     </div>
-  );
-}
-
-function Dot({ delay }: { delay: string }) {
-  return (
-    <span
-      className="h-1.5 w-1.5 animate-bounce rounded-full bg-zinc-400 dark:bg-zinc-500"
-      style={{ animationDelay: delay, animationDuration: '900ms' }}
-    />
   );
 }
