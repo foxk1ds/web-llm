@@ -10,6 +10,7 @@ interface WireMessage {
   role: 'system' | 'user' | 'assistant' | 'tool';
   content: string;
   tool_name?: string;
+<<<<<<< HEAD
   tool_calls?: Array<{
     id?: string;
     type?: string;
@@ -18,14 +19,18 @@ interface WireMessage {
       arguments: Record<string, unknown>;
     };
   }>;
+=======
+  images?: string[];
+>>>>>>> origin/main
 }
 
 export interface AgentLoopOptions {
   model: string;
-  messages: Array<{ role: 'user' | 'assistant'; content: string }>;
+  messages: Array<{ role: 'user' | 'assistant'; content: string; images?: string[] }>;
   system?: string;
   workspace: string;
   maxSteps?: number;
+  options?: { temperature?: number; num_predict?: number } | null;
   signal?: AbortSignal;
   emit: (event: AgentEvent) => void;
   requestApproval?: (call: ToolCall) => Promise<boolean>;
@@ -52,7 +57,7 @@ interface UpstreamChunk {
 }
 
 export async function runAgentLoop(options: AgentLoopOptions): Promise<void> {
-  const { model, messages, system, workspace, signal, emit, requestApproval } = options;
+  const { model, messages, system, workspace, options: ollamaOptions, signal, emit, requestApproval } = options;
   const maxSteps = Math.min(options.maxSteps ?? DEFAULT_MAX_STEPS, 12);
 
   const cleanWorkspace = cleanWorkspacePath(workspace);
@@ -68,8 +73,62 @@ export async function runAgentLoop(options: AgentLoopOptions): Promise<void> {
     emit(event);
   };
 
+<<<<<<< HEAD
   try {
     for (let step = 0; step < maxSteps; step += 1) {
+=======
+    let content = '';
+    let thinking = '';
+    const nativeCalls: Array<{ name: string; arguments: Record<string, unknown> }> = [];
+    let stats: MessageStats | undefined;
+    let upstreamError: string | null = null;
+
+    try {
+      await streamCompletion({
+        model,
+        messages: history,
+        options: ollamaOptions,
+        signal,
+        onChunk: (chunk) => {
+          if (chunk.error) upstreamError = chunk.error;
+          if (chunk.message?.thinking) {
+            thinking += chunk.message.thinking;
+            emit({ type: 'thinking', value: chunk.message.thinking });
+          }
+          if (chunk.message?.content) {
+            content += chunk.message.content;
+            emit({ type: 'token', value: chunk.message.content });
+          }
+          for (const raw of chunk.message?.tool_calls ?? []) {
+            const fn = raw.function ?? raw;
+            const name = typeof fn.name === 'string' ? fn.name : undefined;
+            if (!name) continue;
+            let args = (fn as { arguments?: unknown }).arguments;
+            if (typeof args === 'string') {
+              try {
+                args = JSON.parse(args);
+              } catch {
+                args = {};
+              }
+            }
+            nativeCalls.push({
+              name,
+              arguments: (args && typeof args === 'object' ? args : {}) as Record<string, unknown>,
+            });
+          }
+          if (chunk.done) {
+            const evalCount = chunk.eval_count ?? 0;
+            const evalNs = chunk.eval_duration ?? 0;
+            stats = {
+              evalCount,
+              tokensPerSecond: evalNs > 0 ? evalCount / (evalNs / 1e9) : undefined,
+              totalDurationMs: chunk.total_duration ? chunk.total_duration / 1e6 : undefined,
+            };
+          }
+        },
+      });
+    } catch (error) {
+>>>>>>> origin/main
       if (signal?.aborted) {
         safeEmit({ type: 'done', reason: 'stopped' });
         return;
@@ -313,10 +372,11 @@ export async function runAgentLoop(options: AgentLoopOptions): Promise<void> {
 async function streamCompletion(args: {
   model: string;
   messages: WireMessage[];
+  options?: { temperature?: number; num_predict?: number } | null;
   signal?: AbortSignal;
   onChunk: (chunk: UpstreamChunk) => void;
 }): Promise<void> {
-  const { model, messages, signal, onChunk } = args;
+  const { model, messages, options, signal, onChunk } = args;
 
   const declaredTools = TOOLS.map((tool) => ({
     type: 'function',
@@ -327,9 +387,25 @@ async function streamCompletion(args: {
     },
   }));
 
+<<<<<<< HEAD
   const NO_RESPONSE_TIMEOUT_MS = 90_000;
   const timeoutController = new AbortController();
   let timer: NodeJS.Timeout | null = null;
+=======
+  const response = await fetch(`${OLLAMA_BASE_URL}/api/chat`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      model,
+      messages,
+      stream: true,
+      tools: declaredTools,
+      ...(options ? { options } : {}),
+    }),
+    signal,
+    cache: 'no-store',
+  });
+>>>>>>> origin/main
 
   const resetTimer = () => {
     if (timer) clearTimeout(timer);

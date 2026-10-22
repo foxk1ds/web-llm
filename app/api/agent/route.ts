@@ -39,9 +39,15 @@ export async function POST(req: Request) {
   }
 
   const history = body.messages
-    .filter((m) => m && typeof m.content === 'string' && m.content.trim())
+    .filter((m) => m && typeof m.content === 'string')
     .filter((m) => m.role === 'user' || m.role === 'assistant')
-    .map((m) => ({ role: m.role as 'user' | 'assistant', content: m.content }));
+    .map((m) => ({ role: m.role as 'user' | 'assistant', content: m.content, images: sanitizeImages(m.images) }))
+    .filter((m) => m.content.trim() || (m.images?.length ?? 0) > 0)
+    .map((m) => ({
+      role: m.role,
+      content: m.content,
+      ...(m.images?.length ? { images: m.images } : {}),
+    }));
 
   if (history.length === 0) {
     return errorResponse('No usable messages in request.', 'BAD_REQUEST', 400);
@@ -72,6 +78,7 @@ export async function POST(req: Request) {
           system: subjectOf(body.system),
           workspace,
           maxSteps: typeof body.maxSteps === 'number' ? body.maxSteps : undefined,
+          options: sanitizeOptions(body.options),
           signal: controller.signal,
           emit,
           requestApproval: (call) => waitForApproval(runId, call.id),
@@ -109,8 +116,36 @@ export async function POST(req: Request) {
   });
 }
 
+function sanitizeOptions(value: unknown): { temperature?: number; num_predict?: number } | null {
+  if (!value || typeof value !== 'object') return null;
+  const source = value as { temperature?: unknown; num_predict?: unknown };
+  const options: { temperature?: number; num_predict?: number } = {};
+
+  if (typeof source.temperature === 'number' && Number.isFinite(source.temperature)) {
+    options.temperature = Math.min(2, Math.max(0, source.temperature));
+  }
+  if (typeof source.num_predict === 'number' && Number.isFinite(source.num_predict)) {
+    options.num_predict = Math.min(32768, Math.max(1, Math.round(source.num_predict)));
+  }
+
+  return options.temperature === undefined && options.num_predict === undefined ? null : options;
+}
+
 function subjectOf(value: unknown): string | undefined {
   return typeof value === 'string' && value.trim() ? value.trim() : undefined;
+}
+
+function sanitizeImages(value: unknown): string[] | undefined {
+  if (!Array.isArray(value)) return undefined;
+  const images = value
+    .filter((image): image is string => typeof image === 'string' && image.length > 0)
+    .map((image) => {
+      const comma = image.indexOf(',');
+      return image.startsWith('data:') && comma >= 0 ? image.slice(comma + 1) : image;
+    })
+    .filter((image) => image.length < 20_000_000)
+    .slice(0, 8);
+  return images.length > 0 ? images : undefined;
 }
 
 function errorResponse(error: string, code: ApiErrorBody['code'], status: number) {

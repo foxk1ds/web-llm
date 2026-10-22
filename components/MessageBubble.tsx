@@ -11,13 +11,14 @@ import {
   ChevronRight,
   Copy,
   Eye,
+  FileText,
   RefreshCw,
 } from 'lucide-react';
 import CodeBlock from './CodeBlock';
 import ToolCallCard from './ToolCallCard';
 import { looksLikeHarnessJson } from '@/lib/agent/protocol';
 import { writeToClipboard } from '@/lib/clipboard';
-import { modelBadgeLabel, formatClockTime } from '@/lib/format';
+import { formatBytes, modelBadgeLabel, formatClockTime } from '@/lib/format';
 import type { Message } from '@/types';
 
 function buildMarkdownComponents(hideHarnessJson: boolean): Components {
@@ -48,7 +49,11 @@ function buildMarkdownComponents(hideHarnessJson: boolean): Components {
           href={href}
           target="_blank"
           rel="noopener noreferrer"
+<<<<<<< HEAD
           className="font-medium text-foreground underline decoration-muted-foreground/40 underline-offset-2 hover:decoration-foreground transition-colors"
+=======
+          className="font-medium text-accent underline decoration-accent/40 underline-offset-2 hover:decoration-accent"
+>>>>>>> origin/main
         >
           {children}
         </a>
@@ -57,8 +62,13 @@ function buildMarkdownComponents(hideHarnessJson: boolean): Components {
 
     table({ children }) {
       return (
+<<<<<<< HEAD
         <div className="my-4 overflow-x-auto rounded-lg border border-border">
           <table className="w-full text-sm">{children}</table>
+=======
+        <div className="my-4 overflow-x-auto rounded-md border border-line">
+          <table className="w-full">{children}</table>
+>>>>>>> origin/main
         </div>
       );
     },
@@ -75,7 +85,11 @@ function JsonDisclosure({ code, language }: { code: string; language?: string })
         <button
           type="button"
           onClick={() => setRevealed(false)}
+<<<<<<< HEAD
           className="focus-ring absolute right-3 top-10 z-10 flex items-center gap-1 rounded-md border border-border bg-panel px-2 py-1 text-[11px] font-medium text-foreground shadow-xs transition-colors hover:bg-muted"
+=======
+          className="focus-ring absolute right-3 top-11 z-10 flex items-center gap-1 rounded-sm bg-white/10 px-2 py-1 text-2xs font-medium text-zinc-200 transition-colors hover:bg-white/20"
+>>>>>>> origin/main
         >
           <Eye className="h-3 w-3" />
           Hide
@@ -87,15 +101,26 @@ function JsonDisclosure({ code, language }: { code: string; language?: string })
   const lines = code.split('\n').length;
 
   return (
+<<<<<<< HEAD
     <div className="not-prose my-3 flex items-center gap-2.5 rounded-lg border border-border bg-muted/30 px-3 py-2">
       <Braces className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
       <span className="min-w-0 flex-1 text-xs text-muted-foreground font-mono">
         JSON payload · {lines} {lines === 1 ? 'line' : 'lines'} · collapsed
+=======
+    <div className="not-prose my-4 flex items-center gap-2.5 rounded-lg border border-line bg-surface px-3.5 py-2.5">
+      <Braces className="h-3.5 w-3.5 shrink-0 text-ink-muted" />
+      <span className="min-w-0 flex-1 text-xs text-ink-muted">
+        JSON output · {lines} {lines === 1 ? 'line' : 'lines'} · hidden
+>>>>>>> origin/main
       </span>
       <button
         type="button"
         onClick={() => setRevealed(true)}
+<<<<<<< HEAD
         className="focus-ring shrink-0 rounded border border-border bg-panel px-2 py-1 text-[11px] font-medium text-foreground transition-colors hover:bg-muted"
+=======
+        className="focus-ring shrink-0 rounded-sm border border-line-strong bg-surface px-2 py-1 text-2xs font-medium text-ink-secondary transition-colors hover:bg-surface-hover"
+>>>>>>> origin/main
       >
         Show
       </button>
@@ -104,6 +129,7 @@ function JsonDisclosure({ code, language }: { code: string; language?: string })
 }
 
 const PROSE_CLASSES = [
+<<<<<<< HEAD
   'prose prose-zinc max-w-none dark:prose-invert',
   'prose-headings:scroll-mt-20 prose-headings:font-semibold prose-headings:tracking-tight prose-headings:text-foreground',
   'prose-h1:text-xl prose-h2:text-lg prose-h3:text-base',
@@ -112,6 +138,16 @@ const PROSE_CLASSES = [
   'prose-strong:font-semibold prose-strong:text-foreground',
   'prose-blockquote:border-l-2 prose-blockquote:border-border prose-blockquote:font-normal prose-blockquote:not-italic prose-blockquote:text-muted-foreground',
   'prose-img:rounded-lg',
+=======
+  'prose prose-neutral max-w-none dark:prose-invert',
+  'prose-headings:scroll-mt-20 prose-headings:font-semibold prose-headings:tracking-tight',
+  'prose-h1:text-xl prose-h2:text-lg prose-h3:text-base',
+  'prose-p:text-[15px] prose-p:leading-7',
+  'prose-li:text-[15px] prose-li:leading-7 prose-li:marker:text-ink-muted',
+  'prose-strong:font-semibold prose-strong:text-ink',
+  'prose-blockquote:border-l-2 prose-blockquote:border-line-strong prose-blockquote:font-normal prose-blockquote:not-italic',
+  'prose-img:rounded-md',
+>>>>>>> origin/main
 ].join(' ');
 
 interface MessageBubbleProps {
@@ -121,7 +157,14 @@ interface MessageBubbleProps {
   onRegenerate?: () => void;
   onDecideTool?: (callId: string, approved: boolean) => void;
   showJson?: boolean;
+  showTimestamps?: boolean;
 }
+
+/** Vertical padding for each turn, scaled by the saved chat layout. */
+const TURN_PADDING: React.CSSProperties = {
+  paddingTop: 'calc(var(--chat-density) * 1.25rem)',
+  paddingBottom: 'calc(var(--chat-density) * 1.25rem)',
+};
 
 function MessageBubbleBase({
   message,
@@ -130,6 +173,7 @@ function MessageBubbleBase({
   onRegenerate,
   onDecideTool,
   showJson = false,
+  showTimestamps = true,
 }: MessageBubbleProps) {
   if (message.role === 'user') return <UserMessage message={message} />;
   return (
@@ -140,6 +184,7 @@ function MessageBubbleBase({
       onRegenerate={onRegenerate}
       onDecideTool={onDecideTool}
       showJson={showJson}
+      showTimestamps={showTimestamps}
     />
   );
 }
@@ -151,7 +196,8 @@ const MessageBubble = memo(MessageBubbleBase, (prev, next) => {
     prev.canRegenerate === next.canRegenerate &&
     prev.onRegenerate === next.onRegenerate &&
     prev.onDecideTool === next.onDecideTool &&
-    prev.showJson === next.showJson
+    prev.showJson === next.showJson &&
+    prev.showTimestamps === next.showTimestamps
   );
 });
 
@@ -161,12 +207,60 @@ export default MessageBubble;
  * User messages: in a subtle gray bubble on the right
  */
 function UserMessage({ message }: { message: Message }) {
+  const attachments = message.attachments ?? [];
+
   return (
+<<<<<<< HEAD
     <div className="flex justify-end px-4 py-3 sm:px-6">
       <div className="max-w-[80%] rounded-lg border border-border bg-muted/60 px-4 py-2.5">
         <p className="whitespace-pre-wrap break-words text-[14px] leading-relaxed text-foreground font-sans">
           {message.content}
         </p>
+=======
+    <div className="flex justify-end px-4 sm:px-6" style={TURN_PADDING}>
+      <div className="max-w-[85%] rounded-2xl rounded-tr-md border border-line bg-surface-sunken px-4 py-3">
+        {attachments.length > 0 ? (
+          <div className={`flex flex-wrap justify-end gap-2 ${message.content ? 'mb-2.5' : ''}`}>
+            {attachments.map((attachment) =>
+              attachment.kind === 'image' && attachment.dataUrl ? (
+                <a
+                  key={attachment.id}
+                  href={attachment.dataUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  title={`${attachment.name} — open full size`}
+                  className="focus-ring block overflow-hidden rounded-md border border-line"
+                >
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={attachment.dataUrl}
+                    alt={attachment.name}
+                    className="h-24 w-24 object-cover"
+                  />
+                </a>
+              ) : (
+                <span
+                  key={attachment.id}
+                  className="flex max-w-[16rem] items-center gap-2 rounded-md border border-line bg-surface-sunken px-2 py-1 text-xs text-ink-secondary"
+                  title={attachment.name}
+                >
+                  <FileText className="h-3.5 w-3.5 shrink-0 text-ink-muted" />
+                  <span className="min-w-0 truncate">{attachment.name}</span>
+                  <span className="shrink-0 text-2xs tabular-nums text-ink-muted">
+                    {formatBytes(attachment.size)}
+                  </span>
+                </span>
+              ),
+            )}
+          </div>
+        ) : null}
+
+        {message.content ? (
+          <p className="chat-prose whitespace-pre-wrap">
+            {message.content}
+          </p>
+        ) : null}
+>>>>>>> origin/main
       </div>
     </div>
   );
@@ -179,6 +273,7 @@ interface AssistantMessageProps {
   onRegenerate?: () => void;
   onDecideTool?: (callId: string, approved: boolean) => void;
   showJson?: boolean;
+  showTimestamps?: boolean;
 }
 
 /**
@@ -191,6 +286,7 @@ function AssistantMessage({
   onRegenerate,
   onDecideTool,
   showJson = false,
+  showTimestamps = true,
 }: AssistantMessageProps) {
   const isError = message.status === 'error';
   const showEmptyPulse = streaming && !message.content && !message.thinking;
@@ -200,12 +296,23 @@ function AssistantMessage({
   );
 
   return (
+<<<<<<< HEAD
     <div className="group/msg w-full px-4 py-4 sm:px-6 text-foreground">
       <div className="w-full">
         {/* Thinking Panel (DeepSeek-R1 / CoT models) */}
         {message.thinking ? <ThinkingPanel text={message.thinking} streaming={streaming} /> : null}
 
         {/* Tool Call Cards */}
+=======
+    <div className="group/msg flex gap-3 px-4 sm:px-6" style={TURN_PADDING}>
+      <div className="mt-1 flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-line-strong bg-canvas">
+        <Sparkles className="h-3.5 w-3.5 text-ink" />
+      </div>
+
+      <div className="min-w-0 flex-1">
+        {message.thinking ? <ThinkingPanel text={message.thinking} streaming={streaming} /> : null}
+
+>>>>>>> origin/main
         {message.toolCalls?.length ? (
           <div className="mb-3">
             {message.toolCalls.map((call) => (
@@ -227,6 +334,7 @@ function AssistantMessage({
           <ErrorCard message={message.error ?? 'Generation failed.'} onRetry={canRegenerate ? onRegenerate : undefined} />
         ) : null}
 
+<<<<<<< HEAD
         {/* Streaming placeholder indicator */}
         {showEmptyPulse ? (
           <div className="flex items-center gap-1.5 py-1" aria-label="Generating response">
@@ -246,6 +354,28 @@ function AssistantMessage({
               <span
                 aria-hidden
                 className="ml-0.5 inline-block h-[1.1em] w-[2px] translate-y-[0.15em] animate-blink bg-foreground align-baseline"
+=======
+            {message.content ? (
+              <div className={PROSE_CLASSES}>
+                <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>
+                  {message.content}
+                </ReactMarkdown>
+                {streaming ? (
+                  <span
+                    aria-hidden
+                    className="ml-0.5 inline-block h-[1.05em] w-[2px] translate-y-[0.15em] animate-blink rounded-sm bg-ink-muted align-baseline motion-reduce:animate-none motion-reduce:opacity-60"
+                  />
+                ) : null}
+              </div>
+            ) : null}
+
+            {!streaming && message.content ? (
+              <MessageFooter
+                message={message}
+                canRegenerate={canRegenerate}
+                onRegenerate={onRegenerate}
+                showTimestamp={showTimestamps}
+>>>>>>> origin/main
               />
             ) : null}
           </div>
@@ -271,10 +401,12 @@ function MessageFooter({
   message,
   canRegenerate,
   onRegenerate,
+  showTimestamp,
 }: {
   message: Message;
   canRegenerate?: boolean;
   onRegenerate?: () => void;
+  showTimestamp: boolean;
 }) {
   const [copied, setCopied] = useState(false);
 
@@ -288,13 +420,24 @@ function MessageFooter({
   const speed = message.stats?.tokensPerSecond;
 
   return (
+<<<<<<< HEAD
     <div className="mt-3 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground">
       {message.model ? <span className="font-mono">{modelBadgeLabel(message.model)}</span> : null}
+=======
+    <div className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-2xs text-ink-muted">
+      {message.model ? (
+        <span className="font-mono">{modelBadgeLabel(message.model)}</span>
+      ) : null}
+>>>>>>> origin/main
 
-      <span aria-hidden>·</span>
-      <span title={new Date(message.createdAt).toLocaleString()}>
-        {formatClockTime(message.createdAt)}
-      </span>
+      {showTimestamp ? (
+        <>
+          <span aria-hidden>·</span>
+          <span title={new Date(message.createdAt).toLocaleString()}>
+            {formatClockTime(message.createdAt)}
+          </span>
+        </>
+      ) : null}
 
       {typeof speed === 'number' && speed > 0 ? (
         <>
@@ -310,8 +453,9 @@ function MessageFooter({
         </>
       ) : null}
 
-      <span aria-hidden>·</span>
+      {message.model || showTimestamp || speed ? <span aria-hidden>·</span> : null}
       <div className="flex items-center gap-1">
+<<<<<<< HEAD
         <button
           type="button"
           onClick={copy}
@@ -321,6 +465,12 @@ function MessageFooter({
           {copied ? <Check className="h-3 w-3 text-foreground" /> : <Copy className="h-3 w-3" />}
           <span className={copied ? 'text-foreground font-medium' : ''}>{copied ? 'Copied' : 'Copy'}</span>
         </button>
+=======
+        <FooterButton onClick={copy} label={copied ? 'Copied' : 'Copy reply'}>
+          {copied ? <Check className="h-3 w-3 text-success" /> : <Copy className="h-3 w-3" />}
+          <span>{copied ? 'Copied' : 'Copy'}</span>
+        </FooterButton>
+>>>>>>> origin/main
 
         {canRegenerate && onRegenerate ? (
           <button
@@ -338,16 +488,48 @@ function MessageFooter({
   );
 }
 
+<<<<<<< HEAD
+=======
+function FooterButton({
+  onClick,
+  label,
+  children,
+}: {
+  onClick: () => void;
+  label: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-label={label}
+      className="focus-ring flex items-center gap-1 rounded-sm px-1.5 py-1 text-2xs text-ink-muted transition-colors hover:bg-surface-hover hover:text-ink"
+    >
+      {children}
+    </button>
+  );
+}
+
+>>>>>>> origin/main
 function ThinkingPanel({ text, streaming }: { text: string; streaming?: boolean }) {
   const [open, setOpen] = useState(false);
 
   return (
+<<<<<<< HEAD
     <div className="mb-3 overflow-hidden rounded-lg border border-border bg-muted/30">
+=======
+    <div className="mb-3 overflow-hidden rounded-lg border border-line bg-surface-sunken">
+>>>>>>> origin/main
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
         aria-expanded={open}
+<<<<<<< HEAD
         className="focus-ring flex w-full items-center gap-2 px-3 py-2 text-left text-xs font-medium text-muted-foreground hover:text-foreground transition-colors"
+=======
+        className="focus-ring flex w-full items-center gap-2 px-3 py-2 text-left text-xs font-medium text-ink-muted transition-colors hover:text-ink"
+>>>>>>> origin/main
       >
         <Brain className="h-3.5 w-3.5 shrink-0" />
         <span>{streaming ? 'Thinking…' : 'Thought process'}</span>
@@ -356,8 +538,13 @@ function ThinkingPanel({ text, streaming }: { text: string; streaming?: boolean 
         />
       </button>
       {open ? (
+<<<<<<< HEAD
         <div className="thin-scrollbar max-h-72 overflow-y-auto border-t border-border px-3 py-2 bg-panel">
           <pre className="whitespace-pre-wrap break-words font-mono text-xs leading-relaxed text-muted-foreground">
+=======
+        <div className="thin-scrollbar max-h-72 overflow-y-auto border-t border-line px-3 py-2">
+          <pre className="whitespace-pre-wrap break-words font-mono text-2xs leading-relaxed text-ink-muted">
+>>>>>>> origin/main
             {text}
           </pre>
         </div>
@@ -368,19 +555,32 @@ function ThinkingPanel({ text, streaming }: { text: string; streaming?: boolean 
 
 function ErrorCard({ message, onRetry }: { message: string; onRetry?: () => void }) {
   return (
+<<<<<<< HEAD
     <div className="rounded-lg border border-red-500/30 bg-red-500/[0.04] p-3">
       <div className="flex gap-2">
         <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-red-500" />
         <div className="min-w-0 flex-1">
           <p className="text-xs font-semibold text-red-600 dark:text-red-400">Generation failed</p>
           <p className="mt-1 break-words text-xs text-red-600/90 dark:text-red-400/90 leading-relaxed">
+=======
+    <div className="rounded-lg border border-danger/30 bg-danger-soft px-3.5 py-3">
+      <div className="flex gap-2.5">
+        <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-danger" />
+        <div className="min-w-0 flex-1">
+          <p className="text-sm font-medium text-danger">Generation failed</p>
+          <p className="mt-1 break-words text-xs leading-6 text-danger">
+>>>>>>> origin/main
             {message}
           </p>
           {onRetry ? (
             <button
               type="button"
               onClick={onRetry}
+<<<<<<< HEAD
               className="focus-ring mt-2 flex items-center gap-1.5 rounded border border-red-500/30 bg-red-500/10 px-2 py-1 text-xs font-medium text-red-600 hover:bg-red-500/20 dark:text-red-400 transition-colors"
+=======
+              className="focus-ring mt-2 flex items-center gap-1.5 rounded-sm border border-danger/40 bg-surface px-2 py-1 text-xs font-medium text-danger transition-colors hover:bg-danger-soft"
+>>>>>>> origin/main
             >
               <RefreshCw className="h-3 w-3" />
               Try again
@@ -391,3 +591,15 @@ function ErrorCard({ message, onRetry }: { message: string; onRetry?: () => void
     </div>
   );
 }
+<<<<<<< HEAD
+=======
+
+function Dot({ delay }: { delay: string }) {
+  return (
+    <span
+      className="h-1.5 w-1.5 animate-dot-pulse rounded-full bg-ink-muted motion-reduce:animate-none"
+      style={{ animationDelay: delay }}
+    />
+  );
+}
+>>>>>>> origin/main

@@ -3,10 +3,17 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Sidebar from '@/components/Sidebar';
 import ChatWindow from '@/components/ChatWindow';
+<<<<<<< HEAD
 import SettingsModal from '@/components/SettingsModal';
+=======
+import SettingsSheet from '@/components/SettingsSheet';
+>>>>>>> origin/main
 import { OllamaError, fetchModels, isAbortError, streamChat } from '@/lib/ollama';
 import { AgentError, respondToApproval, runAgent } from '@/lib/agentClient';
+import { hasAttachments, titleFromAttachments, toWireMessage } from '@/lib/attachments';
 import {
+  DEFAULT_SETTINGS,
+  clearAllData,
   createId,
   loadActiveId,
   loadSessions,
@@ -18,20 +25,44 @@ import {
 import type {
   AgentDoneReason,
   AgentMode,
+  Attachment,
   ChatSession,
   ConnectionState,
   Message,
   MessageStats,
   OllamaModel,
-  ThemeMode,
+  Settings,
   ToolCall,
+  WireMessage,
 } from '@/types';
 
 const PERSIST_INTERVAL_MS = 1000;
 
 const MAX_TITLE_LENGTH = 60;
 
-type WireMessage = { role: 'user' | 'assistant'; content: string };
+/** Generation settings that the user controls, in Ollama's option names. */
+function samplingOptions(prefs: Settings): { temperature: number; num_predict: number } {
+  return { temperature: prefs.temperature, num_predict: prefs.maxTokens };
+}
+
+const FONT_SIZE_PX: Record<Settings['fontSize'], string> = {
+  sm: '14px',
+  default: '15px',
+  lg: '17px',
+  xl: '19px',
+};
+
+function usableForWire(message: Message): boolean {
+  if (message.status === 'error') return false;
+  return hasAttachments(message) || message.content.trim().length > 0;
+}
+
+function buildHistory(messages: Message[]): WireMessage[] {
+  return messages
+    .filter(usableForWire)
+    .map(toWireMessage)
+    .filter((message): message is WireMessage => message !== null);
+}
 
 export default function Page() {
   const [models, setModels] = useState<OllamaModel[]>([]);
@@ -43,17 +74,30 @@ export default function Page() {
   const [activeId, setActiveId] = useState<string | null>(null);
   const [hydrated, setHydrated] = useState(false);
 
-  const [selectedModel, setSelectedModel] = useState<string | null>(null);
-  const [systemPrompt, setSystemPrompt] = useState('');
-  const [theme, setTheme] = useState<ThemeMode>('dark');
-  const [mode, setMode] = useState<AgentMode>('chat');
-  const [workspace, setWorkspace] = useState<string | null>(null);
-  const [showJson, setShowJson] = useState(false);
+  const [prefs, setPrefs] = useState<Settings>(DEFAULT_SETTINGS);
+  const {
+    selectedModel,
+    systemPrompt,
+    theme,
+    workspace: workspacePref,
+    showJson: showJsonPref,
+    enterToSend: enterToSendPref,
+    showTimestamps: showTimestampsPref,
+  } = prefs;
+  // `Settings` keeps these optional for older saved payloads; normalise once.
+  const showJson = showJsonPref === true;
+  const enterToSend = enterToSendPref !== false;
+  const showTimestamps = showTimestampsPref !== false;
+  const streamEnabled = prefs.streaming !== false;
+  const selectedModelRef = useRef(selectedModel);
+  selectedModelRef.current = selectedModel;
 
   const [streaming, setStreaming] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  /** Conversation id whose "clear" confirmation is open. */
+  const [clearRequest, setClearRequest] = useState<string | null>(null);
   const [newChatShortcut, setNewChatShortcut] = useState('Ctrl+N');
 
   const abortRef = useRef<AbortController | null>(null);
@@ -64,25 +108,52 @@ export default function Page() {
     messageId: string;
   } | null>(null);
 
+  const patchPrefs = useCallback((patch: Partial<Settings>) => {
+    setPrefs((prev) => ({ ...prev, ...patch }));
+    // The system prompt belongs to the conversation as well as to defaults.
+    if ('systemPrompt' in patch) {
+      setSessions((prev) =>
+        prev.map((s) => (s.id === activeIdRef.current ? { ...s, systemPrompt: patch.systemPrompt ?? '' } : s)),
+      );
+    }
+  }, []);
+
+  // `mode` and `workspace` are optional in Settings only for legacy payloads.
+  const mode: AgentMode = prefs.mode === 'chat' ? 'chat' : 'agent';
+  const workspace = workspacePref ?? null;
+
+  const activeIdRef = useRef(activeId);
+  activeIdRef.current = activeId;
+  const prefsRef = useRef(prefs);
+  prefsRef.current = prefs;
+
+  /** What the connection state will be once the in-flight refresh settles. */
+  const connectionAfterRef = useRef<ConnectionState>('checking');
+
   const refreshModels = useCallback(async () => {
     setModelsLoading(true);
     try {
       const list = await fetchModels();
       setModels(list);
+      connectionAfterRef.current = 'online';
       setConnection('online');
       setConnectionMessage('');
-      setSelectedModel((prev) =>
-        prev && list.some((m) => m.name === prev) ? prev : (list[0]?.name ?? null),
-      );
+      patchPrefs({
+        selectedModel:
+          selectedModelRef.current && list.some((m) => m.name === selectedModelRef.current)
+            ? selectedModelRef.current
+            : (list[0]?.name ?? null),
+      });
     } catch (err) {
       const unreachable = err instanceof OllamaError && err.code === 'OLLAMA_UNREACHABLE';
+      connectionAfterRef.current = unreachable ? 'offline' : 'online';
       setConnection(unreachable ? 'offline' : 'online');
       setConnectionMessage(err instanceof Error ? err.message : 'Could not load models.');
       if (unreachable) setModels([]);
     } finally {
       setModelsLoading(false);
     }
-  }, []);
+  }, [patchPrefs]);
 
   useEffect(() => {
     void refreshModels();
@@ -93,12 +164,7 @@ export default function Page() {
     const settings = loadSettings();
 
     setSessions(storedSessions);
-    setSelectedModel(settings.selectedModel);
-    setSystemPrompt(settings.systemPrompt);
-    setTheme(settings.theme);
-    setMode(settings.mode ?? 'chat');
-    setWorkspace(settings.workspace ?? null);
-    setShowJson(settings.showJson ?? false);
+    setPrefs(settings);
 
     const storedActive = loadActiveId();
     setActiveId(
@@ -107,8 +173,11 @@ export default function Page() {
     setHydrated(true);
   }, []);
 
+  // Every appearance preference is reflected on <html> so the whole tree,
+  // including portals, follows it.
   useEffect(() => {
     const root = document.documentElement;
+<<<<<<< HEAD
     const applyTheme = (isDark: boolean) => {
       root.classList.toggle('dark', isDark);
       root.style.colorScheme = isDark ? 'dark' : 'light';
@@ -126,6 +195,13 @@ export default function Page() {
       applyTheme(theme === 'dark');
     }
   }, [theme]);
+=======
+    root.classList.toggle('dark', prefs.theme === 'dark');
+    root.style.setProperty('--chat-font-size', FONT_SIZE_PX[prefs.fontSize]);
+    root.dataset.density = prefs.density;
+  }, [prefs.theme, prefs.fontSize, prefs.density]);
+
+>>>>>>> origin/main
 
   const sessionsRef = useRef(sessions);
   sessionsRef.current = sessions;
@@ -157,8 +233,8 @@ export default function Page() {
   }, [hydrated]);
 
   useEffect(() => {
-    if (hydrated) saveSettings({ selectedModel, systemPrompt, theme, mode, workspace, showJson });
-  }, [selectedModel, systemPrompt, theme, mode, workspace, showJson, hydrated]);
+    if (hydrated) saveSettings(prefs);
+  }, [prefs, hydrated]);
 
   useEffect(() => {
     if (hydrated) saveActiveId(activeId);
@@ -188,6 +264,7 @@ export default function Page() {
       history: WireMessage[],
       model: string,
       prompt: string,
+      options: { temperature?: number; num_predict?: number },
     ) => {
       const controller = new AbortController();
       abortRef.current = controller;
@@ -236,6 +313,7 @@ export default function Page() {
           model,
           messages: history,
           system: prompt,
+          options,
           signal: controller.signal,
           onToken: (token) => {
             pendingContent += token;
@@ -296,6 +374,7 @@ export default function Page() {
       model: string,
       prompt: string,
       workspacePath: string | null,
+      options: { temperature?: number; num_predict?: number },
     ) => {
       const controller = new AbortController();
       abortRef.current = controller;
@@ -354,6 +433,7 @@ export default function Page() {
           messages: history,
           system: prompt,
           workspace: workspacePath ?? undefined,
+          options,
           signal: controller.signal,
           onEvent: (event) => {
             switch (event.type) {
@@ -466,9 +546,9 @@ export default function Page() {
   );
 
   const handleSend = useCallback(
-    (text: string) => {
+    (text: string, attachments: Attachment[] = []) => {
       const trimmed = text.trim();
-      if (!trimmed || streaming || !selectedModel) return;
+      if ((!trimmed && attachments.length === 0) || streaming || !selectedModel) return;
 
       const existing = activeId ? (sessions.find((s) => s.id === activeId) ?? null) : null;
       const sessionId = existing?.id ?? createId();
@@ -479,6 +559,7 @@ export default function Page() {
         content: trimmed,
         createdAt: Date.now(),
         status: 'complete',
+        ...(attachments.length > 0 ? { attachments } : {}),
       };
       const assistantMessage: Message = {
         id: createId(),
@@ -489,9 +570,7 @@ export default function Page() {
         status: 'streaming',
       };
 
-      const history: WireMessage[] = [...(existing?.messages ?? []), userMessage]
-        .filter((m) => m.status !== 'error' && m.content.trim().length > 0)
-        .map((m) => ({ role: m.role as 'user' | 'assistant', content: m.content }));
+      const history = buildHistory([...(existing?.messages ?? []), userMessage]);
 
       if (existing) {
         setSessions((prev) =>
@@ -510,7 +589,7 @@ export default function Page() {
       } else {
         const session: ChatSession = {
           id: sessionId,
-          title: buildTitle(trimmed),
+          title: buildTitle(trimmed, attachments),
           model: selectedModel,
           systemPrompt,
           messages: [userMessage, assistantMessage],
@@ -521,6 +600,8 @@ export default function Page() {
         setActiveId(sessionId);
       }
 
+      const options = samplingOptions(prefsRef.current);
+
       if (mode === 'agent') {
         void runAgentTurn(
           sessionId,
@@ -529,9 +610,17 @@ export default function Page() {
           selectedModel,
           systemPrompt,
           workspace,
+          options,
         );
       } else {
-        void runCompletion(sessionId, assistantMessage.id, history, selectedModel, systemPrompt);
+        void runCompletion(
+          sessionId,
+          assistantMessage.id,
+          history,
+          selectedModel,
+          systemPrompt,
+          options,
+        );
       }
     },
     [activeId, sessions, streaming, selectedModel, systemPrompt, mode, workspace, runCompletion, runAgentTurn],
@@ -555,9 +644,10 @@ export default function Page() {
       status: 'streaming',
     };
 
-    const history: WireMessage[] = kept
-      .filter((m) => m.content.trim().length > 0)
-      .map((m) => ({ role: m.role as 'user' | 'assistant', content: m.content }));
+    const history = kept
+      .filter((m) => m.content.trim().length > 0 || hasAttachments(m))
+      .map(toWireMessage)
+      .filter((message): message is WireMessage => message !== null);
 
     setSessions((prev) =>
       prev.map((s) =>
@@ -572,10 +662,19 @@ export default function Page() {
       ),
     );
 
+    const options = samplingOptions(prefsRef.current);
     if (mode === 'agent') {
-      void runAgentTurn(activeId, assistantMessage.id, history, selectedModel, systemPrompt, workspace);
+      void runAgentTurn(
+        activeId,
+        assistantMessage.id,
+        history,
+        selectedModel,
+        systemPrompt,
+        workspace,
+        options,
+      );
     } else {
-      void runCompletion(activeId, assistantMessage.id, history, selectedModel, systemPrompt);
+      void runCompletion(activeId, assistantMessage.id, history, selectedModel, systemPrompt, options);
     }
   }, [activeId, sessions, streaming, selectedModel, systemPrompt, mode, workspace, runCompletion, runAgentTurn]);
 
@@ -634,8 +733,8 @@ export default function Page() {
   }, [handleNewChat]);
 
   const handleOpenSettings = useCallback(() => {
+    setSidebarOpen(false);
     setSettingsOpen(true);
-    setSidebarOpen(true);
   }, []);
 
   const handleSelectSession = useCallback(
@@ -646,12 +745,13 @@ export default function Page() {
       setSidebarOpen(false);
 
       const session = sessions.find((s) => s.id === id);
-      if (session?.model && models.some((m) => m.name === session.model)) {
-        setSelectedModel(session.model);
-      }
-      setSystemPrompt(session?.systemPrompt ?? '');
+      const modelAvailable = session?.model && models.some((m) => m.name === session.model);
+      patchPrefs({
+        ...(modelAvailable ? { selectedModel: session.model } : {}),
+        systemPrompt: session?.systemPrompt ?? '',
+      });
     },
-    [sessions, models],
+    [sessions, models, patchPrefs],
   );
 
   const handleDeleteSession = useCallback(
@@ -663,23 +763,38 @@ export default function Page() {
     [activeId],
   );
 
-  const handleClear = useCallback(() => {
-    if (!activeId || streaming) return;
-    if (!window.confirm('Clear every message in this conversation? This cannot be undone.')) return;
+  const handleClearConfirmed = useCallback((id: string) => {
     setSessions((prev) =>
-      prev.map((s) => (s.id === activeId ? { ...s, messages: [], updatedAt: Date.now() } : s)),
+      prev.map((s) => (s.id === id ? { ...s, messages: [], updatedAt: Date.now() } : s)),
     );
-  }, [activeId, streaming]);
+  }, []);
 
-  const handleSystemPromptChange = useCallback(
-    (value: string) => {
-      setSystemPrompt(value);
-      setSessions((prev) =>
-        prev.map((s) => (s.id === activeId ? { ...s, systemPrompt: value } : s)),
-      );
-    },
-    [activeId],
-  );
+  const handleDeleteAllSessions = useCallback(() => {
+    abortRef.current?.abort();
+    setSessions([]);
+    setActiveId(null);
+  }, []);
+
+  const handleImportSessions = useCallback((imported: ChatSession[]) => {
+    setSessions((prev) => {
+      const known = new Set(prev.map((s) => s.id));
+      return [...imported.filter((s) => !known.has(s.id)), ...prev];
+    });
+  }, []);
+
+  const handleResetSettings = useCallback(() => {
+    setPrefs({ ...DEFAULT_SETTINGS, selectedModel: selectedModelRef.current });
+  }, []);
+
+  const handleDataCleared = useCallback(() => {
+    abortRef.current?.abort();
+    clearAllData();
+  }, []);
+
+  const handleTestConnection = useCallback(async () => {
+    await refreshModels();
+    return connectionAfterRef.current === 'online';
+  }, [refreshModels]);
 
   const activeSession = useMemo(
     () => sessions.find((s) => s.id === activeId) ?? null,
@@ -694,14 +809,32 @@ export default function Page() {
   return (
     <div className="flex h-full overflow-hidden">
       <Sidebar
+<<<<<<< HEAD
+=======
+        models={models}
+        modelsLoading={modelsLoading}
+        selectedModel={selectedModel}
+        onSelectModel={(name) => patchPrefs({ selectedModel: name })}
+        onRefreshModels={() => void refreshModels()}
+>>>>>>> origin/main
         sessions={sortedSessions}
         activeId={activeId}
         streaming={streaming}
         onSelectSession={handleSelectSession}
         onNewChat={handleNewChat}
         onDeleteSession={handleDeleteSession}
+<<<<<<< HEAD
         newChatShortcut={newChatShortcut}
         onOpenSettings={() => setSettingsOpen(true)}
+=======
+        connection={connection}
+        newChatShortcut={newChatShortcut}
+        mode={mode}
+        onModeChange={(next: AgentMode) => patchPrefs({ mode: next })}
+        workspace={workspace}
+        onWorkspaceChange={(next: string | null) => patchPrefs({ workspace: next })}
+        onOpenSettings={handleOpenSettings}
+>>>>>>> origin/main
         open={sidebarOpen}
         onClose={() => setSidebarOpen(false)}
       />
@@ -719,7 +852,7 @@ export default function Page() {
         onSend={handleSend}
         onStop={handleStop}
         onRegenerate={handleRegenerate}
-        onClear={handleClear}
+        onClear={() => setClearRequest(activeId)}
         onRetryConnection={() => void refreshModels()}
         onDismissError={() => setError(null)}
         onOpenSidebar={() => setSidebarOpen(true)}
@@ -728,6 +861,38 @@ export default function Page() {
         onDecideTool={handleDecideTool}
         onNewChat={handleNewChat}
         showJson={showJson}
+        enterToSend={enterToSend}
+        streamEnabled={streamEnabled}
+        showTimestamps={showTimestamps}
+        clearTarget={clearRequest ? (sessions.find((s) => s.id === clearRequest) ?? null) : null}
+        onCancelClear={() => setClearRequest(null)}
+        onConfirmClear={() => {
+          if (clearRequest) handleClearConfirmed(clearRequest);
+          setClearRequest(null);
+        }}
+      />
+
+      <SettingsSheet
+        open={settingsOpen}
+        onClose={() => setSettingsOpen(false)}
+        settings={prefs}
+        onChange={patchPrefs}
+        models={models}
+        modelsLoading={modelsLoading}
+        connection={connection}
+        connectionMessage={connectionMessage}
+        onTestConnection={handleTestConnection}
+        sessions={sortedSessions}
+        activeId={activeId}
+        onImportSessions={handleImportSessions}
+        onClearConversation={() => {
+          if (!activeId || streaming) return;
+          setSettingsOpen(false);
+          setClearRequest(activeId);
+        }}
+        onDeleteAllSessions={handleDeleteAllSessions}
+        onResetSettings={handleResetSettings}
+        onDataCleared={handleDataCleared}
       />
 
       <SettingsModal
@@ -751,8 +916,9 @@ export default function Page() {
   );
 }
 
-function buildTitle(text: string): string {
+function buildTitle(text: string, attachments: Attachment[] = []): string {
   const singleLine = text.replace(/\s+/g, ' ').trim();
+  if (!singleLine) return titleFromAttachments(attachments);
   if (singleLine.length <= MAX_TITLE_LENGTH) return singleLine;
   return `${singleLine.slice(0, MAX_TITLE_LENGTH).trimEnd()}…`;
 }

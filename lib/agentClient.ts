@@ -4,10 +4,11 @@ import type { AgentEvent } from '@/types';
 
 export interface RunAgentOptions {
   model: string;
-  messages: Array<{ role: 'user' | 'assistant'; content: string }>;
+  messages: Array<{ role: 'user' | 'assistant'; content: string; images?: string[] }>;
   system?: string;
   workspace?: string;
   maxSteps?: number;
+  options?: { temperature?: number; num_predict?: number } | null;
   signal?: AbortSignal;
   onEvent: (event: AgentEvent) => void;
 }
@@ -22,14 +23,14 @@ export class AgentError extends Error {
 }
 
 export async function runAgent(options: RunAgentOptions): Promise<void> {
-  const { model, messages, system, workspace, maxSteps, signal, onEvent } = options;
+  const { model, messages, system, workspace, maxSteps, options: ollamaOptions, signal, onEvent } = options;
 
   let response: Response;
   try {
     response = await fetch('/api/agent', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ model, messages, system, workspace, maxSteps }),
+      body: JSON.stringify({ model, messages, system, workspace, maxSteps, options: ollamaOptions }),
       signal,
     });
   } catch (error) {

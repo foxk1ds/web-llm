@@ -5,8 +5,9 @@ import { readNdjsonLines } from '@/lib/ndjson';
 
 export interface StreamChatOptions {
   model: string;
-  messages: Array<{ role: Role; content: string }>;
+  messages: Array<{ role: Role; content: string; images?: string[] }>;
   system?: string;
+  options?: { temperature?: number; num_predict?: number } | null;
   signal?: AbortSignal;
   onToken: (token: string) => void;
   onThinking?: (token: string) => void;
@@ -41,14 +42,20 @@ export async function fetchModels(): Promise<OllamaModel[]> {
 }
 
 export async function streamChat(options: StreamChatOptions): Promise<void> {
-  const { model, messages, system, signal, onToken, onThinking, onDone } = options;
+  const { model, messages, system, options: ollamaOptions, signal, onToken, onThinking, onDone } = options;
 
-  const res = await fetch('/api/chat', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ model, messages, system }),
-    signal,
-  });
+  let res: Response;
+  try {
+    res = await fetch('/api/chat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ model, messages, system, options: ollamaOptions ?? undefined }),
+      signal,
+    });
+  } catch (error) {
+    if (isAbortError(error)) throw error;
+    throw new OllamaError('Could not reach the local server.', 'OLLAMA_UNREACHABLE');
+  }
 
   if (!res.ok) {
     let message = `Request failed (HTTP ${res.status}).`;

@@ -256,6 +256,7 @@ export default function CodeBlock({ code, language }: CodeBlockProps) {
   const lineCount = code.split('\n').length;
 
   return (
+<<<<<<< HEAD
     <div className="not-prose my-3 overflow-hidden rounded-lg border border-border bg-panel text-foreground">
       <div className="flex items-center justify-between border-b border-border bg-panel px-3 py-1.5 text-xs">
         <div className="flex items-center gap-2">
@@ -263,14 +264,32 @@ export default function CodeBlock({ code, language }: CodeBlockProps) {
             {label}
           </span>
           <span className="rounded border border-border bg-muted/60 px-1 py-0.2 font-mono text-[10px] text-muted-foreground">
+=======
+    <div className="not-prose group/code my-4 overflow-hidden rounded-lg border border-white/10 bg-code shadow-calm">
+      <div className="flex items-center justify-between gap-3 border-b border-white/10 bg-white/[0.03] px-3 py-1.5">
+        <div className="flex min-w-0 items-center gap-2">
+          <span className="truncate font-mono text-2xs font-medium uppercase tracking-wider text-zinc-300">
+            {label}
+          </span>
+          <span className="shrink-0 rounded-sm bg-white/[0.06] px-1.5 py-0.5 font-mono text-[10px] tabular-nums text-zinc-400">
+>>>>>>> origin/main
             {lineCount} {lineCount === 1 ? 'line' : 'lines'}
           </span>
         </div>
         <button
           type="button"
           onClick={copy}
+<<<<<<< HEAD
           aria-label={copied ? 'Code copied' : 'Copy code'}
           className="focus-ring flex items-center gap-1 rounded px-1.5 py-0.5 text-[11px] font-medium text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+=======
+          aria-label={copied ? 'Code copied to clipboard' : 'Copy code to clipboard'}
+          className={`focus-ring flex shrink-0 items-center gap-1.5 rounded-sm px-2 py-1 text-2xs font-medium transition-colors duration-200 focus-visible:outline-[#7CBFAD] ${
+            copied
+              ? 'bg-white/[0.06] text-[#8FD6B4]'
+              : 'text-zinc-300 hover:bg-white/10 hover:text-zinc-50'
+          }`}
+>>>>>>> origin/main
         >
           {copied ? (
             <>
