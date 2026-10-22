@@ -196,13 +196,13 @@ export default function CodeBlock({ code, language }: CodeBlockProps) {
   const lineCount = code.split('\n').length;
 
   return (
-    <div className="not-prose group/code my-4 overflow-hidden rounded-xl border border-white/[0.08] bg-[#0B0C10] shadow-lg shadow-black/20 ring-1 ring-inset ring-white/[0.02]">
-      <div className="flex items-center justify-between gap-3 border-b border-white/[0.06] bg-white/[0.02] px-3 py-1.5">
+    <div className="not-prose group/code my-4 overflow-hidden rounded-lg border border-white/10 bg-code shadow-calm">
+      <div className="flex items-center justify-between gap-3 border-b border-white/10 bg-white/[0.03] px-3 py-1.5">
         <div className="flex min-w-0 items-center gap-2">
-          <span className="truncate font-mono text-[11px] font-medium uppercase tracking-wider text-zinc-400">
+          <span className="truncate font-mono text-2xs font-medium uppercase tracking-wider text-zinc-300">
             {label}
           </span>
-          <span className="shrink-0 rounded bg-white/[0.06] px-1.5 py-0.5 font-mono text-[10px] tabular-nums text-zinc-500">
+          <span className="shrink-0 rounded-sm bg-white/[0.06] px-1.5 py-0.5 font-mono text-[10px] tabular-nums text-zinc-400">
             {lineCount} {lineCount === 1 ? 'line' : 'lines'}
           </span>
         </div>
@@ -210,10 +210,10 @@ export default function CodeBlock({ code, language }: CodeBlockProps) {
           type="button"
           onClick={copy}
           aria-label={copied ? 'Code copied to clipboard' : 'Copy code to clipboard'}
-          className={`focus-ring flex shrink-0 items-center gap-1.5 rounded-md px-2 py-1 text-[11px] font-medium transition-all duration-200 ${
+          className={`focus-ring flex shrink-0 items-center gap-1.5 rounded-sm px-2 py-1 text-2xs font-medium transition-colors duration-200 focus-visible:outline-[#7CBFAD] ${
             copied
-              ? 'bg-emerald-500/10 text-emerald-400'
-              : 'text-zinc-400 hover:bg-white/[0.08] hover:text-zinc-100'
+              ? 'bg-white/[0.06] text-[#8FD6B4]'
+              : 'text-zinc-300 hover:bg-white/10 hover:text-zinc-50'
           }`}
         >
           {copied ? (

@@ -18,8 +18,12 @@ import {
 } from 'lucide-react';
 import MessageBubble from './MessageBubble';
 import ChatInput from './ChatInput';
+import { Button } from '@/components/ui/Button';
+import { Card } from '@/components/ui/Card';
+import { Header } from '@/components/ui/Header';
+import { Modal } from '@/components/ui/Modal';
 import { modelBadgeLabel } from '@/lib/format';
-import type { ChatSession, ConnectionState } from '@/types';
+import type { Attachment, ChatSession, ConnectionState } from '@/types';
 
 const PIN_THRESHOLD_PX = 96;
 
@@ -38,7 +42,7 @@ interface ChatWindowProps {
   error: string | null;
   connection: ConnectionState;
   connectionMessage: string;
-  onSend: (text: string) => void;
+  onSend: (text: string, attachments?: Attachment[]) => void;
   onStop: () => void;
   onRegenerate: () => void;
   onClear: () => void;
@@ -50,6 +54,12 @@ interface ChatWindowProps {
   onDecideTool: (callId: string, approved: boolean) => void;
   onNewChat: () => void;
   showJson: boolean;
+  enterToSend: boolean;
+  streamEnabled: boolean;
+  showTimestamps: boolean;
+  clearTarget: ChatSession | null;
+  onCancelClear: () => void;
+  onConfirmClear: () => void;
 }
 
 export default function ChatWindow({
@@ -72,6 +82,12 @@ export default function ChatWindow({
   onDecideTool,
   onNewChat,
   showJson,
+  enterToSend,
+  streamEnabled,
+  showTimestamps,
+  clearTarget,
+  onCancelClear,
+  onConfirmClear,
 }: ChatWindowProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const [pinned, setPinned] = useState(true);
@@ -89,7 +105,8 @@ export default function ChatWindow({
 
   const scrollToApproval = useCallback(() => {
     const card = scrollRef.current?.querySelector('[data-awaiting-approval="true"]');
-    card?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    card?.scrollIntoView({ behavior: reduced ? 'auto' : 'smooth', block: 'center' });
   }, []);
 
   const handleScroll = useCallback(() => {
@@ -140,7 +157,8 @@ export default function ChatWindow({
   const pendingApprovals = messages.reduce(
     (n, m) => n + (m.toolCalls?.filter((c) => c.status === 'awaiting_approval').length ?? 0),
     0,
-  );  const subtitle = isEmpty
+  );
+  const subtitle = isEmpty
     ? model
       ? modelBadgeLabel(model)
       : 'No model selected'
@@ -149,53 +167,50 @@ export default function ChatWindow({
       }`;
 
   return (
-    <div className="flex h-full min-w-0 flex-1 flex-col bg-transparent">
-      {}
-      <header className="flex h-14 shrink-0 items-center gap-2 border-b border-overlay/[0.06] px-3 sm:px-4">
-        <button
-          type="button"
-          onClick={onOpenSidebar}
-          aria-label="Open sidebar"
-          className="focus-ring -ml-1 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-zinc-500 transition-colors hover:bg-overlay/[0.06] hover:text-zinc-800 md:hidden dark:text-zinc-400 dark:hover:text-zinc-100"
-        >
-          <Menu className="h-4 w-4" />
-        </button>
-
-        <div className="flex min-w-0 flex-1 flex-col justify-center">
-          <h1 className="truncate text-[13.5px] font-semibold leading-tight tracking-tight text-zinc-900 dark:text-zinc-50">
-            {title}
-          </h1>
-          <p className="mt-0.5 truncate text-[11px] leading-tight text-zinc-500 dark:text-zinc-400">
-            {subtitle}
-          </p>
-        </div>
-
-        <div className="flex shrink-0 items-center gap-1.5">
-          {}
-          {connection === 'offline' ? (
-            <span className="flex items-center gap-1.5 rounded-full border border-red-500/20 bg-red-500/10 px-2 py-1 text-[11px] font-medium text-red-600 dark:text-red-300">
-              <span className="h-1.5 w-1.5 rounded-full bg-red-500" />
-              Offline
-            </span>
-          ) : connection === 'checking' ? (
-            <span className="flex items-center gap-1.5 rounded-full border border-overlay/[0.08] px-2 py-1 text-[11px] text-zinc-500 dark:text-zinc-400">
-              <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-zinc-400" />
-              Checking
-            </span>
-          ) : null}
-
+    <div className="flex h-full min-w-0 flex-1 flex-col bg-canvas">
+      <Header
+        title={title}
+        subtitle={subtitle}
+        leading={
           <button
             type="button"
-            onClick={onClear}
-            disabled={isEmpty}
-            title="Clear this conversation's messages"
-            className="focus-ring flex h-8 items-center gap-1.5 rounded-lg px-2 text-[11.5px] font-medium text-zinc-500 transition-colors hover:bg-overlay/[0.06] hover:text-zinc-800 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-zinc-500 dark:text-zinc-400 dark:hover:text-zinc-100"
+            onClick={onOpenSidebar}
+            aria-label="Open sidebar"
+            className="focus-ring -ml-1 flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-ink-muted transition-colors hover:bg-surface-hover hover:text-ink md:hidden"
           >
-            <Eraser className="h-3.5 w-3.5" />
-            <span className="hidden sm:inline">Clear</span>
+            <Menu className="h-4 w-4" />
           </button>
-        </div>
-      </header>
+        }
+        actions={
+          <>
+            {connection === 'offline' ? (
+              <span className="flex items-center gap-1.5 rounded-full border border-danger/25 bg-danger-soft px-2 py-1 text-2xs font-medium text-danger">
+                <span className="h-1.5 w-1.5 rounded-full bg-danger" aria-hidden />
+                Offline
+              </span>
+            ) : connection === 'checking' ? (
+              <span className="flex items-center gap-1.5 rounded-full border border-line px-2 py-1 text-2xs text-ink-muted">
+                <span
+                  className="h-1.5 w-1.5 animate-pulse rounded-full bg-ink-muted motion-reduce:animate-none"
+                  aria-hidden
+                />
+                Checking
+              </span>
+            ) : null}
+
+            <button
+              type="button"
+              onClick={onClear}
+              disabled={isEmpty}
+              title="Clear this conversation's messages"
+              className="focus-ring flex h-8 items-center gap-1.5 rounded-md px-2 text-xs font-medium text-ink-muted transition-colors hover:bg-surface-hover hover:text-ink disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-ink-muted"
+            >
+              <Eraser className="h-3.5 w-3.5" />
+              <span className="hidden sm:inline">Clear</span>
+            </button>
+          </>
+        }
+      />
 
       <p aria-live="polite" className="sr-only">
         {announcement}
@@ -212,7 +227,7 @@ export default function ChatWindow({
               <NoModels />
             ) : (
               <div className="w-full max-w-3xl">
-                <h2 className="text-center text-[32px] font-normal leading-tight tracking-tight text-zinc-900 dark:text-zinc-50">
+                <h2 className="text-center text-2xl font-medium leading-tight tracking-tight text-ink">
                   Hi, let&apos;s get into it
                 </h2>
 
@@ -227,6 +242,8 @@ export default function ChatWindow({
                     hasSystemPrompt={hasSystemPrompt}
                     onOpenSettings={onOpenSettings}
                     onNewChat={onNewChat}
+                    enterToSend={enterToSend}
+                    streamEnabled={streamEnabled}
                   />
                 </div>
 
@@ -237,15 +254,15 @@ export default function ChatWindow({
                       type="button"
                       disabled={disabled}
                       onClick={() => onSend(text)}
-                      className="group flex items-center gap-2.5 rounded-full border border-overlay/[0.06] bg-overlay/[0.02] px-4 py-2.5 text-left transition-all duration-200 hover:border-overlay/[0.15] hover:bg-overlay/[0.05] disabled:cursor-not-allowed disabled:opacity-50"
+                      className="group flex items-center gap-2.5 rounded-lg border border-line bg-surface px-4 py-3 text-left transition-colors duration-200 hover:border-line-strong hover:bg-surface-hover disabled:cursor-not-allowed disabled:opacity-50"
                     >
-                      <Icon className="h-3.5 w-3.5 shrink-0 text-zinc-500 dark:text-zinc-400" />
-                      <span className="min-w-0 flex-1 truncate text-[12.5px] text-zinc-600 dark:text-zinc-300">
+                      <Icon className="h-3.5 w-3.5 shrink-0 text-ink-muted" />
+                      <span className="min-w-0 flex-1 truncate text-xs text-ink-secondary">
                         {text}
                       </span>
                       <ArrowRight
                         aria-hidden
-                        className="h-3.5 w-3.5 shrink-0 -translate-x-1 text-zinc-400 opacity-0 transition-all duration-200 group-hover:translate-x-0 group-hover:opacity-100 dark:text-zinc-500"
+                        className="h-3.5 w-3.5 shrink-0 text-ink-muted opacity-0 transition-opacity duration-200 group-hover:opacity-100"
                       />
                     </button>
                   ))}
@@ -256,7 +273,6 @@ export default function ChatWindow({
         </div>
       ) : (
         <>
-          {}
           <div className="relative min-h-0 flex-1">
             <div
               ref={scrollRef}
@@ -266,7 +282,10 @@ export default function ChatWindow({
               aria-label="Conversation"
               className="thin-scrollbar h-full overflow-y-auto overscroll-contain"
             >
-              <div className="mx-auto max-w-3xl pb-6">
+              <div
+                className="mx-auto max-w-3xl"
+                style={{ paddingTop: 'calc(var(--chat-density) * 0.5rem)', paddingBottom: 'calc(var(--chat-density) * 1.5rem)' }}
+              >
                 {messages.map((message, index) => (
                   <MessageBubble
                     key={message.id}
@@ -278,6 +297,7 @@ export default function ChatWindow({
                     onRegenerate={onRegenerate}
                     onDecideTool={onDecideTool}
                     showJson={showJson}
+                    showTimestamps={showTimestamps}
                   />
                 ))}
               </div>
@@ -288,31 +308,26 @@ export default function ChatWindow({
                 type="button"
                 onClick={() => scrollToBottom('smooth')}
                 aria-label="Scroll to latest message"
-                className="glass-panel focus-ring absolute bottom-4 left-1/2 flex h-9 w-9 -translate-x-1/2 items-center justify-center rounded-full text-zinc-600 shadow-xl transition-all duration-200 hover:text-zinc-900 dark:text-zinc-300 dark:hover:text-white"
+                className="focus-ring absolute bottom-4 left-1/2 flex h-9 w-9 -translate-x-1/2 items-center justify-center rounded-full border border-line bg-surface text-ink-secondary shadow-calm-md transition-colors hover:text-ink"
               >
                 <ArrowDown className="h-4 w-4" />
               </button>
             ) : null}
           </div>
 
-          {}
           {pendingApprovals > 0 ? (
             <div className="px-4 sm:px-6">
-              <div className="mx-auto flex max-w-3xl items-center gap-2.5 rounded-xl border border-amber-500/35 bg-amber-500/[0.1] px-3.5 py-2.5">
-                <ShieldAlert className="h-4 w-4 shrink-0 text-amber-600 dark:text-amber-400" />
-                <p className="min-w-0 flex-1 text-[13px] leading-6 text-amber-800 dark:text-amber-100">
+              <div className="mx-auto flex max-w-3xl items-center gap-2.5 rounded-lg border border-warning/30 bg-warning-soft px-3.5 py-2.5">
+                <ShieldAlert className="h-4 w-4 shrink-0 text-warning" />
+                <p className="min-w-0 flex-1 text-sm leading-6 text-warning">
                   {pendingApprovals === 1
                     ? 'An action is waiting for your approval.'
                     : `${pendingApprovals} actions are waiting for your approval.`}{' '}
                   The agent is paused until you Allow or Deny.
                 </p>
-                <button
-                  type="button"
-                  onClick={scrollToApproval}
-                  className="focus-ring shrink-0 rounded-lg border border-amber-500/40 bg-amber-500/15 px-2.5 py-1 text-[11.5px] font-medium text-amber-800 transition-colors hover:bg-amber-500/25 dark:text-amber-100"
-                >
+                <Button variant="secondary" size="sm" onClick={scrollToApproval}>
                   Review
-                </button>
+                </Button>
               </div>
             </div>
           ) : null}
@@ -321,9 +336,21 @@ export default function ChatWindow({
               replacing the feed, so the user keeps their transcript in view. */}
           {banner ? (
             <div className="px-4 sm:px-6">
-              <div className="mx-auto flex max-w-3xl items-start gap-2.5 rounded-xl border border-amber-500/25 bg-amber-500/[0.06] px-3.5 py-2.5">
-                <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-600 dark:text-amber-400" />
-                <p className="min-w-0 flex-1 break-words text-[13px] leading-6 text-amber-700 dark:text-amber-200">
+              <div
+                className={`mx-auto flex max-w-3xl items-start gap-2.5 rounded-lg border px-3.5 py-2.5 ${
+                  error
+                    ? 'border-danger/30 bg-danger-soft'
+                    : 'border-warning/30 bg-warning-soft'
+                }`}
+              >
+                <AlertTriangle
+                  className={`mt-0.5 h-4 w-4 shrink-0 ${error ? 'text-danger' : 'text-warning'}`}
+                />
+                <p
+                  className={`min-w-0 flex-1 break-words text-sm leading-6 ${
+                    error ? 'text-danger' : 'text-warning'
+                  }`}
+                >
                   {banner}
                 </p>
                 {error ? (
@@ -331,7 +358,7 @@ export default function ChatWindow({
                     type="button"
                     onClick={onDismissError}
                     aria-label="Dismiss error"
-                    className="focus-ring shrink-0 rounded-md p-0.5 text-amber-600 transition-colors hover:bg-amber-500/15 dark:text-amber-400"
+                    className="focus-ring shrink-0 rounded-sm p-0.5 text-danger transition-colors hover:bg-danger/10"
                   >
                     <X className="h-3.5 w-3.5" />
                   </button>
@@ -351,10 +378,34 @@ export default function ChatWindow({
               hasSystemPrompt={hasSystemPrompt}
               onOpenSettings={onOpenSettings}
               onNewChat={onNewChat}
+              enterToSend={enterToSend}
+              streamEnabled={streamEnabled}
             />
           </div>
         </>
       )}
+
+      <Modal
+        open={clearTarget !== null}
+        onClose={onCancelClear}
+        title="Clear this conversation?"
+        size="sm"
+        footer={
+          <>
+            <Button variant="secondary" size="sm" onClick={onCancelClear}>
+              Cancel
+            </Button>
+            <Button variant="danger" size="sm" onClick={onConfirmClear}>
+              Clear messages
+            </Button>
+          </>
+        }
+      >
+        <p className="px-5 py-4 text-sm leading-6 text-ink-secondary">
+          Every message in &ldquo;{clearTarget?.title ?? 'this conversation'}&rdquo; will be removed.
+          The conversation stays in your history. This cannot be undone.
+        </p>
+      </Modal>
     </div>
   );
 }
@@ -365,9 +416,9 @@ function LoadingModels() {
       <div
         role="status"
         aria-label="Looking for local models"
-        className="mx-auto h-6 w-6 animate-spin rounded-full border-2 border-overlay/[0.12] border-t-indigo-500"
+        className="mx-auto h-6 w-6 animate-spin rounded-full border-2 border-line border-t-accent motion-reduce:animate-none"
       />
-      <p className="mt-4 text-sm text-zinc-500 dark:text-zinc-400">Looking for local models…</p>
+      <p className="mt-4 text-sm text-ink-muted">Looking for local models…</p>
     </div>
   );
 }
@@ -375,13 +426,13 @@ function LoadingModels() {
 function NoModels() {
   return (
     <div className="w-full max-w-xl text-center">
-      <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl border border-overlay/[0.08] bg-overlay/[0.04]">
-        <Terminal className="h-5 w-5 text-zinc-500 dark:text-zinc-400" />
+      <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-lg border border-line bg-surface-sunken">
+        <Terminal className="h-5 w-5 text-ink-muted" />
       </div>
-      <h2 className="mt-4 text-lg font-semibold tracking-tight text-zinc-900 dark:text-zinc-100">
+      <h2 className="mt-4 text-lg font-semibold tracking-tight text-ink">
         No models installed yet
       </h2>
-      <p className="mt-2 text-sm leading-6 text-zinc-500 dark:text-zinc-400">
+      <p className="mt-2 text-sm leading-6 text-ink-muted">
         Ollama is running, but it has nothing to chat with. Pull a model from a terminal
         and it will appear in the sidebar automatically.
       </p>
@@ -396,53 +447,43 @@ function NoModels() {
 
 function CommandLine({ command, note }: { command: string; note: string }) {
   return (
-    <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1 rounded-lg border border-overlay/[0.08] bg-overlay/[0.03] px-3 py-2">
-      <code className="font-mono text-[12.5px] text-zinc-800 dark:text-zinc-200">{command}</code>
-      <span className="text-[11px] text-zinc-500 dark:text-zinc-400">{note}</span>
+    <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1 rounded-md border border-line bg-surface-sunken px-3 py-2">
+      <code className="font-mono text-xs text-ink">{command}</code>
+      <span className="text-2xs text-ink-muted">{note}</span>
     </div>
   );
 }
 
 function ConnectionPanel({ message, onRetry }: { message: string; onRetry: () => void }) {
   return (
-    <div className="mx-auto max-w-xl px-6 py-16">
-      <div className="rounded-2xl border border-amber-500/25 bg-amber-500/[0.06] p-5">
-        <div className="flex items-center gap-2.5">
-          <Plug className="h-4 w-4 text-amber-600 dark:text-amber-400" />
-          <h2 className="text-sm font-semibold text-amber-800 dark:text-amber-200">
-            Can&apos;t reach Ollama
-          </h2>
-        </div>
-        <p className="mt-2 break-words text-[13px] leading-6 text-amber-700 dark:text-amber-200/80">
-          {message}
-        </p>
-
-        <p className="mt-4 text-[11px] font-semibold uppercase tracking-wider text-amber-700 dark:text-amber-300/80">
-          To fix
-        </p>
-        <ol className="mt-2 space-y-1.5 text-[13px] leading-6 text-amber-700 dark:text-amber-200/80">
-          <li>
-            1. Start the Ollama service:{' '}
-            <code className="font-mono text-[12.5px]">ollama serve</code>
-          </li>
-          <li>
-            2. Confirm it responds: <code className="font-mono text-[12.5px]">ollama list</code>
-          </li>
-          <li>
-            3. If you moved it, set{' '}
-            <code className="font-mono text-[12.5px]">OLLAMA_BASE_URL</code> in{' '}
-            <code className="font-mono text-[12.5px]">.env.local</code> and restart this app.
-          </li>
-        </ol>
-
-        <button
-          type="button"
-          onClick={onRetry}
-          className="focus-ring mt-4 rounded-lg border border-amber-500/30 bg-amber-500/15 px-3 py-1.5 text-xs font-medium text-amber-700 transition-colors hover:bg-amber-500/25 dark:text-amber-200"
-        >
-          Retry connection
-        </button>
+    <Card tone="warning" className="mx-auto max-w-xl p-5">
+      <div className="flex items-center gap-2.5">
+        <Plug className="h-4 w-4 text-warning" />
+        <h2 className="text-sm font-semibold text-warning">Can&apos;t reach Ollama</h2>
       </div>
-    </div>
+      <p className="mt-2 break-words text-sm leading-6 text-warning">{message}</p>
+
+      <p className="mt-4 text-2xs font-semibold uppercase tracking-wider text-warning">
+        To fix
+      </p>
+      <ol className="mt-2 space-y-1.5 text-sm leading-6 text-warning">
+        <li>
+          1. Start the Ollama service:{' '}
+          <code className="font-mono text-xs">ollama serve</code>
+        </li>
+        <li>
+          2. Confirm it responds: <code className="font-mono text-xs">ollama list</code>
+        </li>
+        <li>
+          3. If you moved it, set{' '}
+          <code className="font-mono text-xs">OLLAMA_BASE_URL</code> in{' '}
+          <code className="font-mono text-xs">.env.local</code> and restart this app.
+        </li>
+      </ol>
+
+      <Button variant="primary" size="sm" onClick={onRetry} className="mt-4">
+        Retry connection
+      </Button>
+    </Card>
   );
 }

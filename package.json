@@ -11,25 +11,30 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@tailwindcss/postcss": "^4.3.3",
+    "es-iterator-helpers": "^1.4.0",
     "lucide-react": "^1.48.0",
-    "next": "^14.2.35",
+    "mammoth": "^1.13.0",
+    "next": "^16.4.2",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "react-markdown": "^10.1.0",
     "react-syntax-highlighter": "^16.1.1",
-    "remark-gfm": "^4.0.1"
+    "remark-gfm": "^4.0.1",
+    "unpdf": "^1.9.0",
+    "xlsx": "^0.18.5"
   },
   "devDependencies": {
-    "@tailwindcss/typography": "^0.5.20",
+    "@tailwindcss/typography": "^0.5.4",
     "@types/node": "^26.6.2",
     "@types/react": "^18.3.31",
     "@types/react-dom": "^18.3.7",
     "@types/react-syntax-highlighter": "^15.5.13",
     "autoprefixer": "^10.6.1",
-    "eslint": "^8.57.1",
+    "eslint": "^9.39.5",
     "eslint-config-next": "^14.2.35",
     "postcss": "^8.5.28",
-    "tailwindcss": "^3.4.19",
+    "tailwindcss": "^4.3.3",
     "typescript": "^5.9.3"
   }
 }

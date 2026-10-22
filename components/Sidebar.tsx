@@ -4,21 +4,19 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Check,
   ChevronDown,
-  Cpu,
   FolderTree,
   MessageSquare,
-  Moon,
   RefreshCw,
-  Settings2,
+  Settings,
   SlidersHorizontal,
   SquarePen,
-  Sun,
   Trash2,
   Wrench,
   X,
 } from 'lucide-react';
+import { Button } from '@/components/ui/Button';
 import { formatBytes, formatRelativeTime, shortenModelName } from '@/lib/format';
-import type { AgentMode, ChatSession, ConnectionState, OllamaModel, ThemeMode } from '@/types';
+import type { AgentMode, ChatSession, ConnectionState, OllamaModel } from '@/types';
 
 interface SidebarProps {
   models: OllamaModel[];
@@ -32,20 +30,13 @@ interface SidebarProps {
   onSelectSession: (id: string) => void;
   onNewChat: () => void;
   onDeleteSession: (id: string) => void;
-  systemPrompt: string;
-  onSystemPromptChange: (value: string) => void;
-  theme: ThemeMode;
-  onThemeChange: (theme: ThemeMode) => void;
   connection: ConnectionState;
   newChatShortcut: string;
   mode: AgentMode;
   onModeChange: (mode: AgentMode) => void;
   workspace: string | null;
   onWorkspaceChange: (workspace: string | null) => void;
-  showJson: boolean;
-  onShowJsonChange: (show: boolean) => void;
-  settingsOpen: boolean;
-  onToggleSettings: () => void;
+  onOpenSettings: () => void;
   open: boolean;
   onClose: () => void;
 }
@@ -62,20 +53,13 @@ export default function Sidebar({
   onSelectSession,
   onNewChat,
   onDeleteSession,
-  systemPrompt,
-  onSystemPromptChange,
-  theme,
-  onThemeChange,
   connection,
   newChatShortcut,
   mode,
   onModeChange,
   workspace,
   onWorkspaceChange,
-  showJson,
-  onShowJsonChange,
-  settingsOpen,
-  onToggleSettings,
+  onOpenSettings,
   open,
   onClose,
 }: SidebarProps) {
@@ -85,47 +69,43 @@ export default function Sidebar({
         <div
           role="presentation"
           onClick={onClose}
-          className="fixed inset-0 z-40 bg-black/60 backdrop-blur-sm md:hidden"
+          className="fixed inset-0 z-40 bg-ink/40 md:hidden"
         />
       ) : null}
 
       <aside
         aria-label="Chat history and settings"
-        className={`glass-panel fixed inset-y-0 left-0 z-50 flex w-[272px] shrink-0 flex-col border-r transition-transform duration-200 ease-out md:static md:z-auto md:translate-x-0 ${
+        className={`fixed inset-y-0 left-0 z-50 flex w-[272px] shrink-0 flex-col border-r border-line bg-surface transition-transform duration-200 ease-out md:static md:z-auto md:translate-x-0 ${
           open ? 'translate-x-0' : '-translate-x-full'
         }`}
       >
-        {/* Brand — metallic wordmark on the navy ground, per the brand image */}
-        <div className="flex h-14 shrink-0 items-center gap-2.5 px-4">
-          <div className="relative flex h-7 w-7 items-center justify-center rounded-lg border border-overlay/[0.1] bg-overlay/[0.05]">
-            <span aria-hidden className="ambient-glow-sm absolute inset-0 rounded-lg opacity-70" />
-            <Cpu className="relative h-3.5 w-3.5 text-indigo-500 dark:text-indigo-300" />
-          </div>
-          <p className="logo-metallic min-w-0 flex-1 truncate text-[17px] font-semibold tracking-tight">
+        {/* Brand: a quiet mark and a solid wordmark. No metallic gradient. */}
+        <div className="flex h-14 shrink-0 items-center gap-2 px-3 pl-4">
+          <p className="min-w-0 flex-1 truncate text-[15px] font-semibold tracking-tight text-ink">
             Web-LLM
           </p>
           <button
             type="button"
             onClick={onClose}
             aria-label="Close sidebar"
-            className="focus-ring rounded-md p-1 text-zinc-500 transition-colors hover:bg-overlay/[0.06] hover:text-zinc-800 md:hidden dark:hover:text-zinc-200"
+            className="focus-ring rounded-md p-1 text-ink-muted transition-colors hover:bg-surface-hover hover:text-ink md:hidden"
           >
             <X className="h-3.5 w-3.5" />
           </button>
         </div>
 
         <div className="flex flex-col gap-2.5 px-3 pb-3">
-          <button
-            type="button"
+          <Button
+            variant="secondary"
             onClick={onNewChat}
-            className="focus-ring group flex w-full items-center gap-2.5 rounded-xl bg-overlay/[0.05] px-3 py-2.5 text-left text-[13px] font-medium text-zinc-800 transition-colors duration-200 hover:bg-overlay/[0.09] dark:text-zinc-100"
+            className="h-auto w-full justify-start gap-2.5 px-3 py-2.5"
           >
-            <SquarePen className="h-4 w-4 shrink-0 text-zinc-500 transition-colors group-hover:text-indigo-500 dark:text-zinc-400 dark:group-hover:text-indigo-300" />
+            <SquarePen className="h-4 w-4 shrink-0 text-ink-muted" aria-hidden />
             <span className="flex-1">New chat</span>
-            <kbd className="shrink-0 rounded border border-overlay/[0.1] bg-overlay/[0.05] px-1.5 py-0.5 font-mono text-[10px] font-medium text-zinc-500 dark:text-zinc-400">
+            <kbd className="shrink-0 rounded-sm border border-line bg-surface-sunken px-1.5 py-0.5 font-mono text-2xs font-medium text-ink-muted">
               {newChatShortcut}
             </kbd>
-          </button>
+          </Button>
 
           <ModelSelector
             models={models}
@@ -147,7 +127,7 @@ export default function Sidebar({
         {/* Conversation list, bucketed by recency so a long history stays scannable */}
         <div className="thin-scrollbar min-h-0 flex-1 overflow-y-auto px-2 pb-2">
           {sessions.length === 0 ? (
-            <p className="px-3 py-8 text-center text-[12.5px] leading-5 text-zinc-500 dark:text-zinc-400">
+            <p className="px-3 py-8 text-center text-xs leading-5 text-ink-muted">
               No conversations yet.
               <br />
               Your chats are saved in this browser.
@@ -155,7 +135,7 @@ export default function Sidebar({
           ) : (
             groupSessionsByDate(sessions).map((group) => (
               <div key={group.label}>
-                <p className="px-2.5 pb-1 pt-3 text-[10.5px] font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
+                <p className="px-2.5 pb-1 pt-3 text-2xs font-semibold uppercase tracking-wider text-ink-muted">
                   {group.label}
                 </p>
                 <ul className="space-y-0.5">
@@ -175,74 +155,18 @@ export default function Sidebar({
           )}
         </div>
 
-        {/* Settings */}
-        <div className="shrink-0 border-t border-overlay/[0.08]">
+        {/* Footer: settings + connection */}
+        <div className="flex shrink-0 items-center gap-2 border-t border-line px-2 py-2">
           <button
             type="button"
-            onClick={onToggleSettings}
-            aria-expanded={settingsOpen}
-            className="focus-ring flex w-full items-center gap-2 px-4 py-2.5 text-left text-[12.5px] font-medium text-zinc-600 transition-colors hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100"
+            onClick={onOpenSettings}
+            aria-haspopup="dialog"
+            className="focus-ring flex h-8 min-w-0 flex-1 items-center gap-2 rounded-md px-2 text-left text-xs font-medium text-ink-secondary transition-colors hover:bg-surface-hover hover:text-ink"
           >
-            <Settings2 className="h-3.5 w-3.5" />
+            <Settings className="h-3.5 w-3.5 shrink-0" aria-hidden />
             <span>Settings</span>
-            {systemPrompt.trim() ? (
-              <span
-                title="A custom system prompt is active"
-                className="h-1.5 w-1.5 rounded-full bg-indigo-500 shadow-[0_0_6px_rgb(99_102_241_/_0.8)]"
-              />
-            ) : null}
-            <ChevronDown
-              className={`ml-auto h-3.5 w-3.5 transition-transform duration-200 ${settingsOpen ? 'rotate-180' : ''}`}
-            />
           </button>
-
-          {settingsOpen ? (
-            <div className="animate-fade-in px-3 pb-3">
-              <label
-                htmlFor="system-prompt"
-                className="px-0.5 pb-1 text-[10.5px] font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400"
-              >
-                System prompt
-              </label>
-              <textarea
-                id="system-prompt"
-                value={systemPrompt}
-                onChange={(e) => onSystemPromptChange(e.target.value)}
-                rows={4}
-                placeholder="You are a helpful programming assistant…"
-                className="focus-ring thin-scrollbar w-full resize-y rounded-lg border border-overlay/[0.1] bg-overlay/[0.03] px-2.5 py-2 text-[12.5px] leading-5 text-zinc-800 transition-colors placeholder:text-zinc-500 focus:border-overlay/[0.2] dark:text-zinc-200"
-              />
-              <div className="mt-1.5 flex items-center justify-between gap-2">
-                <p className="text-[11px] leading-4 text-zinc-500 dark:text-zinc-400">
-                  Applied to every message you send.
-                </p>
-                {systemPrompt ? (
-                  <button
-                    type="button"
-                    onClick={() => onSystemPromptChange('')}
-                    className="focus-ring shrink-0 rounded text-[11px] text-zinc-500 underline decoration-dotted underline-offset-2 transition-colors hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100"
-                  >
-                    Reset
-                  </button>
-                ) : null}
-              </div>
-
-              <div className="mt-3 border-t border-overlay/[0.08] pt-3">
-                <ToggleRow
-                  label="Raw JSON output"
-                  description="Show JSON blocks the model emits instead of collapsing them"
-                  checked={showJson}
-                  onChange={onShowJsonChange}
-                />
-              </div>
-            </div>
-          ) : null}
-
-          {/* Footer: theme + connection */}
-          <div className="flex items-center justify-between gap-2 border-t border-overlay/[0.08] px-3 py-2.5">
-            <ThemeToggle theme={theme} onChange={onThemeChange} />
-            <ConnectionLabel state={connection} />
-          </div>
+          <ConnectionLabel state={connection} />
         </div>
       </aside>
     </>
@@ -299,15 +223,15 @@ function ModelSelector({
         disabled={disabled || loading}
         aria-haspopup="listbox"
         aria-expanded={open}
-        className={`focus-ring flex w-full items-center gap-2.5 rounded-xl border px-2.5 py-2 text-left transition-all duration-200 disabled:cursor-not-allowed disabled:opacity-60 ${
+        className={`focus-ring flex w-full items-center gap-2.5 rounded-md border px-2.5 py-2 text-left transition-colors duration-200 disabled:cursor-not-allowed disabled:opacity-50 ${
           open
-            ? 'border-overlay/[0.2] bg-overlay/[0.06]'
-            : 'border-overlay/[0.08] bg-overlay/[0.03] hover:border-overlay/[0.15] hover:bg-overlay/[0.05]'
+            ? 'border-accent bg-surface'
+            : 'border-line-strong bg-surface hover:bg-surface-hover'
         }`}
       >
-        <SlidersHorizontal className="h-3.5 w-3.5 shrink-0 text-zinc-500 dark:text-zinc-400" />
+        <SlidersHorizontal className="h-3.5 w-3.5 shrink-0 text-ink-muted" />
         <span className="min-w-0 flex-1">
-          <span className="block truncate font-mono text-[12px] font-medium text-zinc-800 dark:text-zinc-100">
+          <span className="block truncate font-mono text-xs font-medium text-ink">
             {shortenModelName(label)}
           </span>
           {current ? (
@@ -319,20 +243,20 @@ function ModelSelector({
           ) : null}
         </span>
         <ChevronDown
-          className={`h-3.5 w-3.5 shrink-0 text-zinc-500 transition-transform duration-200 dark:text-zinc-400 ${open ? 'rotate-180' : ''}`}
+          className={`h-3.5 w-3.5 shrink-0 text-ink-muted transition-transform duration-200 ${open ? 'rotate-180' : ''}`}
         />
       </button>
 
       {open ? (
         <div
           role="listbox"
-          className="glass-panel animate-scale-in absolute left-0 right-0 top-full z-50 mt-1.5 overflow-hidden rounded-xl shadow-2xl shadow-black/20 dark:shadow-black/50"
+          className="animate-scale-in absolute left-0 right-0 top-full z-50 mt-1.5 overflow-hidden rounded-lg border border-line bg-surface-raised shadow-calm-md"
         >
           <div className="thin-scrollbar max-h-56 overflow-y-auto p-1">
             {models.length === 0 ? (
-              <p className="px-2.5 py-3 text-[12px] leading-5 text-zinc-500 dark:text-zinc-400">
+              <p className="px-2.5 py-3 text-xs leading-5 text-ink-muted">
                 No models found. Run{' '}
-                <code className="font-mono text-[11.5px]">ollama pull llama3.2</code> in a terminal.
+                <code className="font-mono text-2xs">ollama pull llama3.2</code> in a terminal.
               </p>
             ) : (
               models.map((m) => {
@@ -347,12 +271,12 @@ function ModelSelector({
                       onSelect(m.name);
                       setOpen(false);
                     }}
-                    className={`flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left transition-colors ${
-                      active ? 'bg-overlay/[0.08]' : 'hover:bg-overlay/[0.05]'
+                    className={`flex w-full items-center gap-2 rounded-sm px-2.5 py-2 text-left transition-colors ${
+                      active ? 'bg-accent-soft' : 'hover:bg-surface-hover'
                     }`}
                   >
                     <span className="min-w-0 flex-1">
-                      <span className="block truncate font-mono text-[12px] text-zinc-800 dark:text-zinc-100">
+                      <span className="block truncate font-mono text-xs text-ink">
                         {shortenModelName(m.name)}
                       </span>
                       <span className="mt-1 flex flex-wrap items-center gap-1">
@@ -361,9 +285,7 @@ function ModelSelector({
                         {m.size ? <span className="pill">{formatBytes(m.size)}</span> : null}
                       </span>
                     </span>
-                    {active ? (
-                      <Check className="h-3.5 w-3.5 shrink-0 text-indigo-500 dark:text-indigo-400" />
-                    ) : null}
+                    {active ? <Check className="h-3.5 w-3.5 shrink-0 text-accent" /> : null}
                   </button>
                 );
               })
@@ -373,7 +295,7 @@ function ModelSelector({
           <button
             type="button"
             onClick={onRefresh}
-            className="focus-ring flex w-full items-center gap-2 border-t border-overlay/[0.08] px-2.5 py-2 text-[11.5px] font-medium text-zinc-500 transition-colors hover:bg-overlay/[0.04] hover:text-zinc-800 dark:text-zinc-400 dark:hover:text-zinc-100"
+            className="focus-ring flex w-full items-center gap-2 border-t border-line px-2.5 py-2 text-2xs font-medium text-ink-muted transition-colors hover:bg-surface-hover hover:text-ink"
           >
             <RefreshCw className={`h-3 w-3 ${loading ? 'animate-spin' : ''}`} />
             Refresh model list
@@ -400,41 +322,39 @@ function ConversationRow({
   return (
     <li>
       <div
-        className={`group/row relative flex items-center rounded-xl transition-colors duration-200 ${
-          active ? 'bg-overlay/[0.08]' : 'hover:bg-overlay/[0.05]'
+        className={`group/row relative flex items-center rounded-md transition-colors duration-200 ${
+          active ? 'bg-accent-soft' : 'hover:bg-surface-hover'
         }`}
       >
         <button
           type="button"
           onClick={onSelect}
           aria-current={active ? 'true' : undefined}
-          className="focus-ring flex min-w-0 flex-1 items-center gap-2 rounded-xl px-2.5 py-2 text-left"
+          className="focus-ring flex min-w-0 flex-1 items-center gap-2 rounded-md px-2.5 py-2 text-left"
         >
           {streaming ? (
             <span className="flex h-3.5 w-3.5 shrink-0 items-center justify-center">
-              <span className="relative flex h-2 w-2">
-                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-indigo-400 opacity-75" />
-                <span className="relative inline-flex h-2 w-2 rounded-full bg-indigo-500" />
-              </span>
+              <span
+                className="h-2 w-2 animate-pulse rounded-full bg-accent motion-reduce:animate-none"
+                aria-hidden
+              />
             </span>
           ) : (
             <MessageSquare
-              className={`h-3.5 w-3.5 shrink-0 ${active ? 'text-zinc-500 dark:text-zinc-300' : 'text-zinc-400 dark:text-zinc-500'}`}
+              className={`h-3.5 w-3.5 shrink-0 ${active ? 'text-accent' : 'text-ink-muted'}`}
             />
           )}
           <span className="min-w-0 flex-1">
             <span
-              className={`block truncate text-[13px] ${
-                active
-                  ? 'font-medium text-zinc-900 dark:text-zinc-50'
-                  : 'text-zinc-600 dark:text-zinc-400'
+              className={`block truncate text-sm ${
+                active ? 'font-medium text-ink' : 'text-ink-secondary'
               }`}
             >
               {session.title}
             </span>
             <span
-              className={`block truncate text-[10.5px] ${
-                streaming ? 'text-indigo-600 dark:text-indigo-300' : 'text-zinc-500 dark:text-zinc-400'
+              className={`block truncate text-2xs ${
+                streaming ? 'text-accent' : 'text-ink-muted'
               }`}
             >
               {streaming
@@ -452,7 +372,7 @@ function ConversationRow({
           }}
           aria-label={`Delete "${session.title}"`}
           title="Delete conversation"
-          className="focus-ring mr-1 shrink-0 rounded-md p-1.5 text-zinc-500 opacity-0 transition-all duration-200 hover:bg-red-500/10 hover:text-red-600 focus:opacity-100 group-hover/row:opacity-100 dark:hover:text-red-400"
+          className="focus-ring mr-1 shrink-0 rounded-sm p-1.5 text-ink-muted opacity-0 transition-opacity duration-200 hover:bg-danger-soft hover:text-danger focus:opacity-100 group-hover/row:opacity-100"
         >
           <Trash2 className="h-3.5 w-3.5" />
         </button>
@@ -487,7 +407,7 @@ function ModeSelector({
       <div
         role="group"
         aria-label="Mode"
-        className="flex items-center gap-0.5 rounded-xl border border-overlay/[0.08] bg-overlay/[0.03] p-0.5"
+        className="flex items-center gap-0.5 rounded-md border border-line bg-surface-sunken p-0.5"
       >
         {MODES.map(({ value, label, Icon, hint }) => (
           <button
@@ -496,10 +416,10 @@ function ModeSelector({
             onClick={() => onModeChange(value)}
             aria-pressed={mode === value}
             title={hint}
-            className={`focus-ring flex flex-1 items-center justify-center gap-1.5 rounded-lg px-2 py-1.5 text-[11.5px] font-medium transition-all duration-200 ${
+            className={`focus-ring flex flex-1 items-center justify-center gap-1.5 rounded-sm px-2 py-1.5 text-2xs font-medium transition-colors duration-200 ${
               mode === value
-                ? 'bg-overlay/[0.1] text-zinc-900 shadow-sm dark:text-zinc-50'
-                : 'text-zinc-500 hover:text-zinc-800 dark:text-zinc-400 dark:hover:text-zinc-200'
+                ? 'bg-surface text-ink shadow-calm'
+                : 'text-ink-muted hover:text-ink'
             }`}
           >
             <Icon className="h-3.5 w-3.5" />
@@ -512,7 +432,7 @@ function ModeSelector({
         <div className="animate-fade-in mt-2">
           <label
             htmlFor="workspace"
-            className="flex items-center gap-1.5 px-0.5 pb-1 text-[10.5px] font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400"
+            className="flex items-center gap-1.5 px-0.5 pb-1 text-2xs font-semibold uppercase tracking-wider text-ink-muted"
           >
             <FolderTree className="h-3 w-3" />
             Workspace
@@ -523,15 +443,15 @@ function ModeSelector({
             onChange={(e) => onWorkspaceChange(e.target.value || null)}
             spellCheck={false}
             placeholder="Defaults to the project folder"
-            className="focus-ring w-full rounded-lg border border-overlay/[0.1] bg-overlay/[0.03] px-2.5 py-1.5 font-mono text-[11.5px] text-zinc-800 transition-colors placeholder:font-sans placeholder:text-zinc-500 focus:border-overlay/[0.2] dark:text-zinc-200"
+            className="field px-2.5 py-1.5 font-mono text-2xs placeholder:font-sans"
           />
-          <p className="mt-1.5 px-0.5 text-[10.5px] leading-4 text-zinc-500 dark:text-zinc-400">
+          <p className="mt-1.5 px-0.5 text-2xs leading-4 text-ink-muted">
             Reads run freely inside this folder. Writes and shell commands each wait for
             your approval. Paths cannot escape the workspace.
           </p>
         </div>
       ) : (
-        <p className="animate-fade-in mt-2 rounded-lg border border-amber-500/25 bg-amber-500/[0.06] px-2.5 py-2 text-[10.5px] leading-4 text-amber-700 dark:text-amber-200">
+        <p className="animate-fade-in mt-2 rounded-md border border-warning/25 bg-warning-soft px-2.5 py-2 text-2xs leading-4 text-warning">
           Chat cannot touch files. Switch to <strong className="font-semibold">Agent</strong> to
           read your project, write code, and run commands.
         </p>
@@ -574,100 +494,36 @@ function groupSessionsByDate(sessions: ChatSession[]): SessionGroup[] {
   return groups.filter((group) => group.sessions.length > 0);
 }
 
-function ToggleRow({
-  label,
-  description,
-  checked,
-  onChange,
-}: {
-  label: string;
-  description: string;
-  checked: boolean;
-  onChange: (checked: boolean) => void;
-}) {
-  return (
-    <div className="flex items-start justify-between gap-3">
-      <div className="min-w-0">
-        <p className="text-[12px] font-medium text-zinc-700 dark:text-zinc-200">{label}</p>
-        <p className="mt-0.5 text-[10.5px] leading-4 text-zinc-500 dark:text-zinc-400">
-          {description}
-        </p>
-      </div>
-      <button
-        type="button"
-        role="switch"
-        aria-checked={checked}
-        aria-label={label}
-        onClick={() => onChange(!checked)}
-        className={`focus-ring relative mt-0.5 h-5 w-9 shrink-0 rounded-full transition-colors duration-200 ${
-          checked ? 'bg-indigo-500' : 'bg-overlay/[0.15]'
-        }`}
-      >
-        <span
-          className={`absolute top-0.5 h-4 w-4 rounded-full bg-white shadow-sm transition-all duration-200 ${
-            checked ? 'left-[18px]' : 'left-0.5'
-          }`}
-        />
-      </button>
-    </div>
-  );
-}
-
-function ThemeToggle({ theme, onChange }: { theme: ThemeMode; onChange: (t: ThemeMode) => void }) {
-  const options: Array<{ value: ThemeMode; label: string; Icon: typeof Sun }> = [
-    { value: 'light', label: 'Light theme', Icon: Sun },
-    { value: 'dark', label: 'Dark theme', Icon: Moon },
-  ];
-
-  return (
-    <div
-      role="group"
-      aria-label="Colour theme"
-      className="flex items-center gap-0.5 rounded-lg border border-overlay/[0.08] bg-overlay/[0.03] p-0.5"
-    >
-      {options.map(({ value, label, Icon }) => (
-        <button
-          key={value}
-          type="button"
-          onClick={() => onChange(value)}
-          aria-label={label}
-          aria-pressed={theme === value}
-          title={label}
-          className={`focus-ring flex h-6 w-6 items-center justify-center rounded-md transition-all duration-200 ${
-            theme === value
-              ? 'bg-overlay/[0.1] text-zinc-900 shadow-sm dark:text-zinc-50'
-              : 'text-zinc-500 hover:text-zinc-800 dark:text-zinc-400 dark:hover:text-zinc-200'
-          }`}
-        >
-          <Icon className="h-3.5 w-3.5" />
-        </button>
-      ))}
-    </div>
-  );
-}
-
 function ConnectionLabel({ state }: { state: ConnectionState }) {
   const config = {
-    checking: { dot: 'bg-zinc-400', ping: false, text: 'Checking…', tone: 'text-zinc-500 dark:text-zinc-400' },
-    online: {
-      dot: 'bg-emerald-400',
-      ping: true,
-      text: 'Ollama online',
-      tone: 'text-zinc-600 dark:text-zinc-300',
+    checking: {
+      dot: 'bg-ink-muted',
+      pulse: true,
+      text: 'Checking…',
+      tone: 'text-ink-muted',
     },
-    offline: { dot: 'bg-red-500', ping: false, text: 'Ollama offline', tone: 'text-red-600 dark:text-red-400' },
+    online: {
+      dot: 'bg-success',
+      pulse: false,
+      text: 'Ollama online',
+      tone: 'text-ink-secondary',
+    },
+    offline: {
+      dot: 'bg-danger',
+      pulse: false,
+      text: 'Ollama offline',
+      tone: 'text-danger',
+    },
   }[state];
 
   return (
-    <span className="flex items-center gap-2 text-[11px] font-medium">
-      <span className="relative flex h-2 w-2">
-        {config.ping ? (
-          <span
-            className={`absolute inline-flex h-full w-full animate-ping rounded-full ${config.dot} opacity-60`}
-          />
-        ) : null}
-        <span className={`relative inline-flex h-2 w-2 rounded-full ${config.dot}`} />
-      </span>
+    <span className="flex items-center gap-2 text-2xs font-medium">
+      <span
+        className={`h-2 w-2 rounded-full ${config.dot} ${
+          config.pulse ? 'animate-pulse motion-reduce:animate-none' : ''
+        }`}
+        aria-hidden
+      />
       <span className={config.tone}>{config.text}</span>
     </span>
   );

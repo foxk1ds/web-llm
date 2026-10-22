@@ -12,14 +12,16 @@ interface WireMessage {
   role: 'system' | 'user' | 'assistant' | 'tool';
   content: string;
   tool_name?: string;
+  images?: string[];
 }
 
 export interface AgentLoopOptions {
   model: string;
-  messages: Array<{ role: 'user' | 'assistant'; content: string }>;
+  messages: Array<{ role: 'user' | 'assistant'; content: string; images?: string[] }>;
   system?: string;
   workspace: string;
   maxSteps?: number;
+  options?: { temperature?: number; num_predict?: number } | null;
   signal?: AbortSignal;
   emit: (event: AgentEvent) => void;
   requestApproval?: (call: ToolCall) => Promise<boolean>;
@@ -45,7 +47,7 @@ interface UpstreamChunk {
 }
 
 export async function runAgentLoop(options: AgentLoopOptions): Promise<void> {
-  const { model, messages, system, workspace, signal, emit, requestApproval } = options;
+  const { model, messages, system, workspace, options: ollamaOptions, signal, emit, requestApproval } = options;
   const maxSteps = Math.min(options.maxSteps ?? DEFAULT_MAX_STEPS, 12);
 
   const systemPrompt = [system?.trim(), toolPromptSection()].filter(Boolean).join('\n\n');
@@ -70,6 +72,7 @@ export async function runAgentLoop(options: AgentLoopOptions): Promise<void> {
       await streamCompletion({
         model,
         messages: history,
+        options: ollamaOptions,
         signal,
         onChunk: (chunk) => {
           if (chunk.error) upstreamError = chunk.error;
@@ -249,10 +252,11 @@ export async function runAgentLoop(options: AgentLoopOptions): Promise<void> {
 async function streamCompletion(args: {
   model: string;
   messages: WireMessage[];
+  options?: { temperature?: number; num_predict?: number } | null;
   signal?: AbortSignal;
   onChunk: (chunk: UpstreamChunk) => void;
 }): Promise<void> {
-  const { model, messages, signal, onChunk } = args;
+  const { model, messages, options, signal, onChunk } = args;
 
   const declaredTools = TOOLS.map((tool) => ({
     type: 'function',
@@ -266,7 +270,13 @@ async function streamCompletion(args: {
   const response = await fetch(`${OLLAMA_BASE_URL}/api/chat`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ model, messages, stream: true, tools: declaredTools }),
+    body: JSON.stringify({
+      model,
+      messages,
+      stream: true,
+      tools: declaredTools,
+      ...(options ? { options } : {}),
+    }),
     signal,
     cache: 'no-store',
   });

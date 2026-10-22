@@ -9,6 +9,18 @@ export interface MessageStats {
   totalDurationMs?: number;
 }
 
+export interface Attachment {
+  id: string;
+  name: string;
+  mimeType: string;
+  size: number;
+  kind: 'image' | 'text';
+  /** Data URL for images. May be omitted after storage compaction. */
+  dataUrl?: string;
+  /** Extracted UTF-8 contents for text attachments. */
+  text?: string;
+}
+
 export interface Message {
   id: string;
   role: Role;
@@ -20,6 +32,7 @@ export interface Message {
   error?: string;
   stats?: MessageStats;
   toolCalls?: ToolCall[];
+  attachments?: Attachment[];
 }
 
 export interface ChatSession {
@@ -45,6 +58,11 @@ export type ThemeMode = 'light' | 'dark';
 
 export type ConnectionState = 'checking' | 'online' | 'offline';
 
+/** Presets applied as `--chat-font-size` on <html>. */
+export type FontSize = 'sm' | 'default' | 'lg' | 'xl';
+
+export type Density = 'compact' | 'comfortable';
+
 export interface Settings {
   selectedModel: string | null;
   systemPrompt: string;
@@ -52,6 +70,13 @@ export interface Settings {
   mode?: AgentMode;
   workspace?: string | null;
   showJson?: boolean;
+  fontSize: FontSize;
+  density: Density;
+  temperature: number;
+  maxTokens: number;
+  enterToSend: boolean;
+  streaming: boolean;
+  showTimestamps: boolean;
 }
 
 export type AgentMode = 'chat' | 'agent';
@@ -96,12 +121,20 @@ export type AgentEvent =
   | { type: 'done'; reason: AgentDoneReason; stats?: MessageStats }
   | { type: 'error'; message: string };
 
+export interface WireMessage {
+  role: 'user' | 'assistant';
+  content: string;
+  /** Base64-encoded images (no data-URL prefix), as Ollama expects. */
+  images?: string[];
+}
+
 export interface AgentRequestBody {
   model: string;
-  messages: Array<Pick<Message, 'role' | 'content'>>;
+  messages: WireMessage[];
   system?: string;
   workspace?: string;
   maxSteps?: number;
+  options?: OllamaOptions;
 }
 
 export interface ToolDefinition {
@@ -153,10 +186,16 @@ export interface OllamaChatChunk {
   eval_duration?: number;
 }
 
+/** Ollama sampling options. Keys use Ollama's snake_case names. */
+export interface OllamaOptions {
+  temperature?: number;
+  num_predict?: number;
+}
+
 export interface ChatRequestBody {
   model: string;
-  messages: Array<Pick<Message, 'role' | 'content'>>;
+  messages: WireMessage[];
   system?: string;
-  options?: Record<string, unknown>;
+  options?: OllamaOptions;
   numCtx?: number;
 }

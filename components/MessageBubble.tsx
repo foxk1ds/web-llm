@@ -11,6 +11,7 @@ import {
   ChevronRight,
   Copy,
   Eye,
+  FileText,
   RefreshCw,
   Sparkles,
 } from 'lucide-react';
@@ -18,7 +19,7 @@ import CodeBlock from './CodeBlock';
 import ToolCallCard from './ToolCallCard';
 import { looksLikeHarnessJson } from '@/lib/agent/protocol';
 import { writeToClipboard } from '@/lib/clipboard';
-import { modelBadgeLabel, formatClockTime } from '@/lib/format';
+import { formatBytes, modelBadgeLabel, formatClockTime } from '@/lib/format';
 import type { Message } from '@/types';
 
 function buildMarkdownComponents(hideHarnessJson: boolean): Components {
@@ -49,7 +50,7 @@ function buildMarkdownComponents(hideHarnessJson: boolean): Components {
           href={href}
           target="_blank"
           rel="noopener noreferrer"
-          className="font-medium text-sky-600 underline decoration-sky-600/30 underline-offset-2 hover:decoration-sky-600 dark:text-sky-400 dark:decoration-sky-400/30 dark:hover:decoration-sky-400"
+          className="font-medium text-accent underline decoration-accent/40 underline-offset-2 hover:decoration-accent"
         >
           {children}
         </a>
@@ -58,7 +59,7 @@ function buildMarkdownComponents(hideHarnessJson: boolean): Components {
 
     table({ children }) {
       return (
-        <div className="my-4 overflow-x-auto rounded-lg border border-zinc-200 dark:border-zinc-800">
+        <div className="my-4 overflow-x-auto rounded-md border border-line">
           <table className="w-full">{children}</table>
         </div>
       );
@@ -76,7 +77,7 @@ function JsonDisclosure({ code, language }: { code: string; language?: string })
         <button
           type="button"
           onClick={() => setRevealed(false)}
-          className="focus-ring absolute right-3 top-11 z-10 flex items-center gap-1 rounded-md bg-white/10 px-2 py-1 text-[11px] font-medium text-zinc-300 backdrop-blur transition-colors hover:bg-white/20"
+          className="focus-ring absolute right-3 top-11 z-10 flex items-center gap-1 rounded-sm bg-white/10 px-2 py-1 text-2xs font-medium text-zinc-200 transition-colors hover:bg-white/20"
         >
           <Eye className="h-3 w-3" />
           Hide
@@ -88,15 +89,15 @@ function JsonDisclosure({ code, language }: { code: string; language?: string })
   const lines = code.split('\n').length;
 
   return (
-    <div className="not-prose my-4 flex items-center gap-2.5 rounded-xl border border-overlay/[0.08] bg-overlay/[0.02] px-3.5 py-2.5">
-      <Braces className="h-3.5 w-3.5 shrink-0 text-zinc-500 dark:text-zinc-400" />
-      <span className="min-w-0 flex-1 text-[12px] text-zinc-500 dark:text-zinc-400">
+    <div className="not-prose my-4 flex items-center gap-2.5 rounded-lg border border-line bg-surface px-3.5 py-2.5">
+      <Braces className="h-3.5 w-3.5 shrink-0 text-ink-muted" />
+      <span className="min-w-0 flex-1 text-xs text-ink-muted">
         JSON output · {lines} {lines === 1 ? 'line' : 'lines'} · hidden
       </span>
       <button
         type="button"
         onClick={() => setRevealed(true)}
-        className="focus-ring shrink-0 rounded-md border border-overlay/[0.1] bg-overlay/[0.04] px-2 py-1 text-[11px] font-medium text-zinc-600 transition-colors hover:bg-overlay/[0.08] dark:text-zinc-300"
+        className="focus-ring shrink-0 rounded-sm border border-line-strong bg-surface px-2 py-1 text-2xs font-medium text-ink-secondary transition-colors hover:bg-surface-hover"
       >
         Show
       </button>
@@ -105,14 +106,14 @@ function JsonDisclosure({ code, language }: { code: string; language?: string })
 }
 
 const PROSE_CLASSES = [
-  'prose prose-zinc max-w-none dark:prose-invert',
+  'prose prose-neutral max-w-none dark:prose-invert',
   'prose-headings:scroll-mt-20 prose-headings:font-semibold prose-headings:tracking-tight',
   'prose-h1:text-xl prose-h2:text-lg prose-h3:text-base',
   'prose-p:text-[15px] prose-p:leading-7',
-  'prose-li:text-[15px] prose-li:leading-7 prose-li:marker:text-zinc-400 dark:prose-li:marker:text-zinc-600',
-  'prose-strong:font-semibold prose-strong:text-zinc-900 dark:prose-strong:text-zinc-50',
-  'prose-blockquote:border-l-2 prose-blockquote:border-zinc-300 prose-blockquote:font-normal prose-blockquote:not-italic dark:prose-blockquote:border-zinc-700',
-  'prose-img:rounded-lg',
+  'prose-li:text-[15px] prose-li:leading-7 prose-li:marker:text-ink-muted',
+  'prose-strong:font-semibold prose-strong:text-ink',
+  'prose-blockquote:border-l-2 prose-blockquote:border-line-strong prose-blockquote:font-normal prose-blockquote:not-italic',
+  'prose-img:rounded-md',
 ].join(' ');
 
 interface MessageBubbleProps {
@@ -122,7 +123,14 @@ interface MessageBubbleProps {
   onRegenerate?: () => void;
   onDecideTool?: (callId: string, approved: boolean) => void;
   showJson?: boolean;
+  showTimestamps?: boolean;
 }
+
+/** Vertical padding for each turn, scaled by the saved chat layout. */
+const TURN_PADDING: React.CSSProperties = {
+  paddingTop: 'calc(var(--chat-density) * 1.25rem)',
+  paddingBottom: 'calc(var(--chat-density) * 1.25rem)',
+};
 
 function MessageBubbleBase({
   message,
@@ -131,6 +139,7 @@ function MessageBubbleBase({
   onRegenerate,
   onDecideTool,
   showJson = false,
+  showTimestamps = true,
 }: MessageBubbleProps) {
   if (message.role === 'user') return <UserMessage message={message} />;
   return (
@@ -141,6 +150,7 @@ function MessageBubbleBase({
       onRegenerate={onRegenerate}
       onDecideTool={onDecideTool}
       showJson={showJson}
+      showTimestamps={showTimestamps}
     />
   );
 }
@@ -152,19 +162,60 @@ const MessageBubble = memo(MessageBubbleBase, (prev, next) => {
     prev.canRegenerate === next.canRegenerate &&
     prev.onRegenerate === next.onRegenerate &&
     prev.onDecideTool === next.onDecideTool &&
-    prev.showJson === next.showJson
+    prev.showJson === next.showJson &&
+    prev.showTimestamps === next.showTimestamps
   );
 });
 
 export default MessageBubble;
 
 function UserMessage({ message }: { message: Message }) {
+  const attachments = message.attachments ?? [];
+
   return (
-    <div className="flex justify-end px-4 py-3 sm:px-6">
-      <div className="max-w-[85%] rounded-2xl rounded-tr-sm border border-overlay/[0.1] bg-overlay/[0.06] px-4 py-3">
-        <p className="whitespace-pre-wrap break-words text-[14.5px] leading-7 text-zinc-800 dark:text-zinc-100">
-          {message.content}
-        </p>
+    <div className="flex justify-end px-4 sm:px-6" style={TURN_PADDING}>
+      <div className="max-w-[85%] rounded-2xl rounded-tr-md border border-line bg-surface-sunken px-4 py-3">
+        {attachments.length > 0 ? (
+          <div className={`flex flex-wrap justify-end gap-2 ${message.content ? 'mb-2.5' : ''}`}>
+            {attachments.map((attachment) =>
+              attachment.kind === 'image' && attachment.dataUrl ? (
+                <a
+                  key={attachment.id}
+                  href={attachment.dataUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  title={`${attachment.name} — open full size`}
+                  className="focus-ring block overflow-hidden rounded-md border border-line"
+                >
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={attachment.dataUrl}
+                    alt={attachment.name}
+                    className="h-24 w-24 object-cover"
+                  />
+                </a>
+              ) : (
+                <span
+                  key={attachment.id}
+                  className="flex max-w-[16rem] items-center gap-2 rounded-md border border-line bg-surface-sunken px-2 py-1 text-xs text-ink-secondary"
+                  title={attachment.name}
+                >
+                  <FileText className="h-3.5 w-3.5 shrink-0 text-ink-muted" />
+                  <span className="min-w-0 truncate">{attachment.name}</span>
+                  <span className="shrink-0 text-2xs tabular-nums text-ink-muted">
+                    {formatBytes(attachment.size)}
+                  </span>
+                </span>
+              ),
+            )}
+          </div>
+        ) : null}
+
+        {message.content ? (
+          <p className="chat-prose whitespace-pre-wrap">
+            {message.content}
+          </p>
+        ) : null}
       </div>
     </div>
   );
@@ -177,6 +228,7 @@ interface AssistantMessageProps {
   onRegenerate?: () => void;
   onDecideTool?: (callId: string, approved: boolean) => void;
   showJson?: boolean;
+  showTimestamps?: boolean;
 }
 
 function AssistantMessage({
@@ -186,6 +238,7 @@ function AssistantMessage({
   onRegenerate,
   onDecideTool,
   showJson = false,
+  showTimestamps = true,
 }: AssistantMessageProps) {
   const isError = message.status === 'error';
   const showEmptyPulse = streaming && !message.content && !message.thinking;
@@ -195,15 +248,14 @@ function AssistantMessage({
   );
 
   return (
-    <div className="group/msg flex gap-3 px-4 py-4 sm:px-6">
-      <div className="relative mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border border-overlay/[0.1] bg-overlay/[0.05]">
-        <Sparkles className="h-3.5 w-3.5 text-indigo-500 dark:text-indigo-300" />
+    <div className="group/msg flex gap-3 px-4 sm:px-6" style={TURN_PADDING}>
+      <div className="mt-1 flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-line-strong bg-canvas">
+        <Sparkles className="h-3.5 w-3.5 text-ink" />
       </div>
 
       <div className="min-w-0 flex-1">
         {message.thinking ? <ThinkingPanel text={message.thinking} streaming={streaming} /> : null}
 
-        {}
         {message.toolCalls?.length ? (
           <div className="mb-3">
             {message.toolCalls.map((call) => (
@@ -242,14 +294,19 @@ function AssistantMessage({
                 {streaming ? (
                   <span
                     aria-hidden
-                    className="ml-0.5 inline-block h-[1.05em] w-[2px] translate-y-[0.15em] animate-blink rounded-sm bg-zinc-500 align-baseline dark:bg-zinc-400"
+                    className="ml-0.5 inline-block h-[1.05em] w-[2px] translate-y-[0.15em] animate-blink rounded-sm bg-ink-muted align-baseline motion-reduce:animate-none motion-reduce:opacity-60"
                   />
                 ) : null}
               </div>
             ) : null}
 
             {!streaming && message.content ? (
-              <MessageFooter message={message} canRegenerate={canRegenerate} onRegenerate={onRegenerate} />
+              <MessageFooter
+                message={message}
+                canRegenerate={canRegenerate}
+                onRegenerate={onRegenerate}
+                showTimestamp={showTimestamps}
+              />
             ) : null}
             </>
           ) : null}
@@ -266,10 +323,12 @@ function MessageFooter({
   message,
   canRegenerate,
   onRegenerate,
+  showTimestamp,
 }: {
   message: Message;
   canRegenerate?: boolean;
   onRegenerate?: () => void;
+  showTimestamp: boolean;
 }) {
   const [copied, setCopied] = useState(false);
 
@@ -283,13 +342,19 @@ function MessageFooter({
   const speed = message.stats?.tokensPerSecond;
 
   return (
-    <div className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] text-zinc-500 opacity-70 transition-opacity group-hover/msg:opacity-100 dark:text-zinc-400">
-      {message.model ? <span className="font-mono">{modelBadgeLabel(message.model)}</span> : null}
+    <div className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-2xs text-ink-muted">
+      {message.model ? (
+        <span className="font-mono">{modelBadgeLabel(message.model)}</span>
+      ) : null}
 
-      <span aria-hidden>·</span>
-      <span title={new Date(message.createdAt).toLocaleString()}>
-        {formatClockTime(message.createdAt)}
-      </span>
+      {showTimestamp ? (
+        <>
+          <span aria-hidden>·</span>
+          <span title={new Date(message.createdAt).toLocaleString()}>
+            {formatClockTime(message.createdAt)}
+          </span>
+        </>
+      ) : null}
 
       {typeof speed === 'number' && speed > 0 ? (
         <>
@@ -305,10 +370,10 @@ function MessageFooter({
         </>
       ) : null}
 
-      <span aria-hidden>·</span>
+      {message.model || showTimestamp || speed ? <span aria-hidden>·</span> : null}
       <div className="flex items-center gap-1">
         <FooterButton onClick={copy} label={copied ? 'Copied' : 'Copy reply'}>
-          {copied ? <Check className="h-3 w-3 text-emerald-500" /> : <Copy className="h-3 w-3" />}
+          {copied ? <Check className="h-3 w-3 text-success" /> : <Copy className="h-3 w-3" />}
           <span>{copied ? 'Copied' : 'Copy'}</span>
         </FooterButton>
 
@@ -337,7 +402,7 @@ function FooterButton({
       type="button"
       onClick={onClick}
       aria-label={label}
-      className="focus-ring flex items-center gap-1 rounded-md px-1.5 py-1 text-[11px] text-zinc-500 transition-colors hover:bg-overlay/[0.06] hover:text-zinc-800 dark:hover:text-zinc-100"
+      className="focus-ring flex items-center gap-1 rounded-sm px-1.5 py-1 text-2xs text-ink-muted transition-colors hover:bg-surface-hover hover:text-ink"
     >
       {children}
     </button>
@@ -348,12 +413,12 @@ function ThinkingPanel({ text, streaming }: { text: string; streaming?: boolean 
   const [open, setOpen] = useState(false);
 
   return (
-    <div className="mb-3 overflow-hidden rounded-xl border border-overlay/[0.08] bg-overlay/[0.03]">
+    <div className="mb-3 overflow-hidden rounded-lg border border-line bg-surface-sunken">
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
         aria-expanded={open}
-        className="focus-ring flex w-full items-center gap-2 px-3 py-2 text-left text-xs font-medium text-zinc-500 transition-colors hover:text-zinc-800 dark:text-zinc-400 dark:hover:text-zinc-200"
+        className="focus-ring flex w-full items-center gap-2 px-3 py-2 text-left text-xs font-medium text-ink-muted transition-colors hover:text-ink"
       >
         <Brain className="h-3.5 w-3.5 shrink-0" />
         <span>{streaming ? 'Thinking…' : 'Thought process'}</span>
@@ -362,8 +427,8 @@ function ThinkingPanel({ text, streaming }: { text: string; streaming?: boolean 
         />
       </button>
       {open ? (
-        <div className="thin-scrollbar max-h-72 overflow-y-auto border-t border-overlay/[0.08] px-3 py-2">
-          <pre className="whitespace-pre-wrap break-words font-mono text-[11.5px] leading-relaxed text-zinc-500 dark:text-zinc-400">
+        <div className="thin-scrollbar max-h-72 overflow-y-auto border-t border-line px-3 py-2">
+          <pre className="whitespace-pre-wrap break-words font-mono text-2xs leading-relaxed text-ink-muted">
             {text}
           </pre>
         </div>
@@ -374,19 +439,19 @@ function ThinkingPanel({ text, streaming }: { text: string; streaming?: boolean 
 
 function ErrorCard({ message, onRetry }: { message: string; onRetry?: () => void }) {
   return (
-    <div className="rounded-xl border border-red-500/25 bg-red-500/[0.06] px-3.5 py-3">
+    <div className="rounded-lg border border-danger/30 bg-danger-soft px-3.5 py-3">
       <div className="flex gap-2.5">
-        <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-red-500 dark:text-red-400" />
+        <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-danger" />
         <div className="min-w-0 flex-1">
-          <p className="text-sm font-medium text-red-700 dark:text-red-300">Generation failed</p>
-          <p className="mt-1 break-words text-[13px] leading-6 text-red-700/90 dark:text-red-300/80">
+          <p className="text-sm font-medium text-danger">Generation failed</p>
+          <p className="mt-1 break-words text-xs leading-6 text-danger">
             {message}
           </p>
           {onRetry ? (
             <button
               type="button"
               onClick={onRetry}
-              className="focus-ring mt-2 flex items-center gap-1.5 rounded-md border border-red-500/30 bg-red-500/10 px-2 py-1 text-xs font-medium text-red-700 transition-colors hover:bg-red-500/20 dark:text-red-300"
+              className="focus-ring mt-2 flex items-center gap-1.5 rounded-sm border border-danger/40 bg-surface px-2 py-1 text-xs font-medium text-danger transition-colors hover:bg-danger-soft"
             >
               <RefreshCw className="h-3 w-3" />
               Try again
@@ -401,8 +466,8 @@ function ErrorCard({ message, onRetry }: { message: string; onRetry?: () => void
 function Dot({ delay }: { delay: string }) {
   return (
     <span
-      className="h-1.5 w-1.5 animate-bounce rounded-full bg-zinc-400 dark:bg-zinc-500"
-      style={{ animationDelay: delay, animationDuration: '900ms' }}
+      className="h-1.5 w-1.5 animate-dot-pulse rounded-full bg-ink-muted motion-reduce:animate-none"
+      style={{ animationDelay: delay }}
     />
   );
 }
